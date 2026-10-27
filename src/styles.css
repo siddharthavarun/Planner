@@ -1294,42 +1294,83 @@ button.crumb:hover {
 .prop-value.clickable:hover {
   background: var(--chip);
 }
-.date-input {
-  border: 0;
-  background: transparent;
-  outline: 0;
-  padding: 4px 10px;
-  border-radius: 999px;
-  cursor: pointer;
-  font-weight: 500;
-}
-.date-input:hover,
-.date-input:focus {
-  background: var(--chip);
-}
 .date-prop {
   flex-wrap: nowrap;
   gap: 6px;
 }
-.date-input {
+.date-field {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  min-height: 30px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--chip);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.date-field svg {
+  flex-shrink: 0;
+  color: var(--fg2);
+}
+.date-field.empty {
+  color: var(--accent);
+}
+.date-field.empty svg {
+  color: inherit;
+}
+.date-field:hover {
+  filter: brightness(0.97);
+}
+.date-field:focus-within {
+  box-shadow: 0 0 0 4px var(--focus);
+}
+/* The real input covers the label invisibly and receives the tap. */
+.date-field input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+  font-size: 16px;
   -webkit-appearance: none;
   appearance: none;
-  width: auto;
-  min-width: 0;
-  flex: 0 1 auto;
-  padding-left: 4px;
-  padding-right: 4px;
-  text-align: left;
 }
-.date-input::-webkit-date-and-time-value {
-  text-align: left;
+.date-field input::-webkit-calendar-picker-indicator {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
 }
 .days-left {
   font-size: 0.76rem;
   font-weight: 400;
   color: var(--fg2);
   white-space: nowrap;
-  flex-shrink: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (max-width: 359px) {
+  .days-left {
+    display: none;
+  }
+}
+@media (max-width: 380px) {
+  .date-field svg {
+    display: none;
+  }
+  .date-field {
+    padding: 4px 10px;
+  }
 }
 .date-prop .icon-btn {
   margin-left: auto;

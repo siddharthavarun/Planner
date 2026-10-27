@@ -11,7 +11,7 @@ import {
 import { showToast } from '../toast';
 import { navigate } from '../route';
 import type { Goal } from '../types';
-import { checklistProgress, daysUntil, formatDateTime, goalProgress, isOverdue } from '../utils';
+import { checklistProgress, daysUntil, formatDate, formatDateTime, goalProgress, isOverdue } from '../utils';
 import { AutoTextarea } from './AutoTextarea';
 import { BlockEditor } from './BlockEditor';
 import {
@@ -189,12 +189,25 @@ export function GoalView({ goal }: { goal: Goal }) {
               <CalendarIcon /> Target
             </span>
             <span className="prop-value date-prop">
-              <input
-                type="date"
-                className={`date-input ${overdue ? 'overdue' : ''}`}
-                value={goal.targetDate ?? ''}
-                onChange={(e) => set({ targetDate: e.target.value || null })}
-              />
+              {/* A visible label with the native date input laid over it, so tapping anywhere
+                  opens the system picker (an empty iOS date input has nothing to tap). */}
+              <label className={`date-field ${overdue ? 'overdue' : ''} ${goal.targetDate ? '' : 'empty'}`}>
+                <CalendarIcon />
+                <span>{goal.targetDate ? formatDate(goal.targetDate) : 'Add a date'}</span>
+                <input
+                  type="date"
+                  aria-label="Target date"
+                  value={goal.targetDate ?? ''}
+                  onChange={(e) => set({ targetDate: e.target.value || null })}
+                  onClick={(e) => {
+                    try {
+                      e.currentTarget.showPicker();
+                    } catch {
+                      // Older browsers open the picker on their own.
+                    }
+                  }}
+                />
+              </label>
               {goal.targetDate && (
                 <>
                   {goal.status !== 'Completed' && goal.status !== 'Cancelled' && (
