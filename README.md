@@ -24,3 +24,15 @@ npm run preview    # serve the production build
 ```
 
 The `dist/` build is a static site, so any static host can serve it, including GitHub Pages and Netlify.
+
+## Put it on your phone's home screen
+
+The repo includes a workflow (`.github/workflows/deploy.yml`) that publishes the app to GitHub Pages on every push to `main`.
+
+1. **Turn on Pages.** In the repository go to **Settings → Pages**, and under **Build and deployment → Source** choose **GitHub Actions**. GitHub Pages for a private repository needs a paid GitHub plan. On a free account, make the repository public first under **Settings → General → Danger Zone → Change visibility**.
+2. **Deploy.** Under **Actions**, open **Deploy to GitHub Pages** and click **Run workflow**, or push a commit. When it finishes, the site is at `https://<your-username>.github.io/Planner/`.
+3. **Install it.**
+   - **iPhone or iPad:** open the link in Safari, tap **Share**, then **Add to Home Screen**.
+   - **Android:** open the link in Chrome, tap **⋮**, then **Install app** (or **Add to Home screen**).
+
+The installed app opens full screen and works offline. It keeps its own data, separate from the browser tab. To move goals between devices or browsers, use **Export backup** and **Import backup** in the sidebar.
