@@ -24,6 +24,7 @@ import {
 } from './Icons';
 import { Menu, Popover, usePopover } from './Popover';
 import { EmojiPicker } from './Pickers';
+import { GalleryBlock } from './GalleryBlock';
 
 interface BlockKind {
   type: BlockType;
@@ -45,6 +46,7 @@ export const BLOCK_KINDS: BlockKind[] = [
   { type: 'table', label: 'Table', desc: 'Rows and columns', glyph: '▦', keywords: 'table grid rows columns spreadsheet' },
   { type: 'callout', label: 'Callout', desc: 'Make text stand out', glyph: '💡', keywords: 'callout note highlight info' },
   { type: 'quote', label: 'Quote', desc: 'Capture a quote', glyph: '❝', keywords: 'quote citation blockquote' },
+  { type: 'gallery', label: 'Gallery', desc: 'Picture cards in a grid', glyph: '▤', keywords: 'gallery cards grid board vision pictures photos' },
   { type: 'image', label: 'Image', desc: 'Upload or embed an image', glyph: '🖼', keywords: 'image picture photo upload' },
   { type: 'code', label: 'Code', desc: 'Monospaced snippet', glyph: '</>', keywords: 'code snippet monospace' },
   { type: 'divider', label: 'Divider', desc: 'Visually divide blocks', glyph: '—', keywords: 'divider line separator hr' },
@@ -52,7 +54,7 @@ export const BLOCK_KINDS: BlockKind[] = [
 
 const LIST_TYPES: BlockType[] = ['bulleted', 'numbered', 'todo'];
 const INDENTABLE: BlockType[] = ['paragraph', 'bulleted', 'numbered', 'todo'];
-const isTextual = (t: BlockType) => t !== 'divider' && t !== 'table' && t !== 'image';
+const isTextual = (t: BlockType) => t !== 'divider' && t !== 'table' && t !== 'image' && t !== 'gallery';
 
 const MARKDOWN: [string, BlockType][] = [
   ['# ', 'h1'],
@@ -429,11 +431,11 @@ export function BlockEditor({ blocks, onChange, focusFirstRef, addTodoRef, onExi
         remove(block.id);
         const t = textualNeighbor(index, -1);
         if (t) focusBlock(t.id, 'end');
-      } else {
-        // Backspace into a table/image/divider removes that block, like Notion's select-then-delete.
+      } else if (prev.type === 'divider') {
         remove(prev.id);
         focusBlock(block.id, 'start');
       }
+      // Tables, images and galleries hold real content: they're only deleted from the block menu.
       return;
     }
 
@@ -611,6 +613,13 @@ export function BlockEditor({ blocks, onChange, focusFirstRef, addTodoRef, onExi
             table={block.table ?? { header: true, rows: [['']] }}
             onChange={(table) => update(block.id, { table })}
             onExit={() => addBlockAfter(index, 'paragraph')}
+          />
+        );
+      case 'gallery':
+        return (
+          <GalleryBlock
+            gallery={block.gallery ?? { size: 'small', items: [] }}
+            onChange={(gallery) => update(block.id, { gallery })}
           />
         );
       case 'image':
@@ -816,6 +825,9 @@ function BlockRow(props: BlockRowProps) {
 
 // ---------- slash menu ----------
 
+// Drawn inside the editor, right under the line being typed, rather than as a fixed
+// overlay: on phones the keyboard shrinks the visible area and a fixed menu ends up far
+// from the caret.
 function SlashMenu(props: {
   blockId: string;
   rootRef: React.RefObject<HTMLDivElement | null>;
@@ -825,46 +837,65 @@ function SlashMenu(props: {
   onPick: (k: BlockKind) => void;
   onClose: () => void;
 }) {
-  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
-  const listRef = useRef<HTMLDivElement>(null);
+  const { blockId, rootRef, onClose } = props;
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [top, setTop] = useState<number | null>(null);
 
   useLayoutEffect(() => {
-    setAnchor(
-      props.rootRef.current?.querySelector<HTMLElement>(
-        `[data-block-id="${props.blockId}"] [data-field="text"]`,
-      ) ?? null,
-    );
-  }, [props.blockId, props.rootRef]);
+    const root = rootRef.current;
+    const field = root?.querySelector<HTMLElement>(`[data-block-id="${blockId}"] [data-field="text"]`);
+    if (!root || !field) return;
+    setTop(field.getBoundingClientRect().bottom - root.getBoundingClientRect().top + 6);
+  }, [blockId, rootRef]);
 
   useEffect(() => {
-    listRef.current
+    if (top !== null) menuRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [top]);
+
+  useEffect(() => {
+    menuRef.current
       ?.querySelector<HTMLElement>(`[data-index="${props.index}"]`)
       ?.scrollIntoView({ block: 'nearest' });
   }, [props.index]);
 
-  if (!anchor) return null;
+  useEffect(() => {
+    const onDown = (e: PointerEvent) => {
+      const t = e.target as Node;
+      if (menuRef.current?.contains(t)) return;
+      if (rootRef.current?.querySelector(`[data-block-id="${blockId}"]`)?.contains(t)) return;
+      onClose();
+    };
+    document.addEventListener('pointerdown', onDown, true);
+    return () => document.removeEventListener('pointerdown', onDown, true);
+  }, [blockId, rootRef, onClose]);
+
+  if (top === null) return null;
   return (
-    <Popover anchor={anchor} onClose={props.onClose} passive>
-      <div className="slash-menu" ref={listRef}>
-        <div className="menu-heading">Blocks</div>
-        {props.matches.length === 0 && <div className="menu-empty">No results</div>}
-        {props.matches.map((k, i) => (
-          <button
-            key={k.type}
-            data-index={i}
-            className={`slash-item ${i === props.index ? 'active' : ''}`}
-            onMouseEnter={() => props.onHover(i)}
-            onClick={() => props.onPick(k)}
-          >
-            <span className="kind-glyph">{k.glyph}</span>
-            <span>
-              <span className="slash-label">{k.label}</span>
-              <span className="slash-desc">{k.desc}</span>
-            </span>
-          </button>
-        ))}
-      </div>
-    </Popover>
+    <div
+      ref={menuRef}
+      className="slash-menu"
+      style={{ top }}
+      // Keep the caret in the text while clicking an option.
+      onMouseDown={(e) => e.preventDefault()}
+    >
+      <div className="menu-heading">Blocks</div>
+      {props.matches.length === 0 && <div className="menu-empty">No results</div>}
+      {props.matches.map((k, i) => (
+        <button
+          key={k.type}
+          data-index={i}
+          className={`slash-item ${i === props.index ? 'active' : ''}`}
+          onMouseEnter={() => props.onHover(i)}
+          onClick={() => props.onPick(k)}
+        >
+          <span className="kind-glyph">{k.glyph}</span>
+          <span>
+            <span className="slash-label">{k.label}</span>
+            <span className="slash-desc">{k.desc}</span>
+          </span>
+        </button>
+      ))}
+    </div>
   );
 }
 

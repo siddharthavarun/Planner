@@ -22,11 +22,24 @@ export type BlockType =
   | 'code'
   | 'divider'
   | 'table'
-  | 'image';
+  | 'image'
+  | 'gallery';
 
 export interface TableData {
   rows: string[][];
   header: boolean;
+}
+
+export interface GalleryItem {
+  id: string;
+  title: string;
+  note: string;
+  cover: Cover | null;
+}
+
+export interface GalleryData {
+  size: 'small' | 'medium';
+  items: GalleryItem[];
 }
 
 export interface Block {
@@ -42,6 +55,7 @@ export interface Block {
   emoji?: string;
   table?: TableData;
   image?: { src: string; caption: string };
+  gallery?: GalleryData;
 }
 
 export interface Goal {
@@ -88,5 +102,6 @@ export interface AppState {
     sort: SortKey;
     statusFilter: Status | 'All';
     cardSize: 'small' | 'medium' | 'large';
+    groupBy: 'none' | 'status' | 'priority';
   };
 }

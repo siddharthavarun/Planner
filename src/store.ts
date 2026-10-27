@@ -108,6 +108,17 @@ export function newBlock(type: BlockType = 'paragraph', text = ''): Block {
   if (type === 'callout') b.emoji = '💡';
   if (type === 'table') b.table = { header: true, rows: [['', '', ''], ['', '', ''], ['', '', '']] };
   if (type === 'image') b.image = { src: '', caption: '' };
+  if (type === 'gallery') {
+    b.gallery = {
+      size: 'small',
+      items: [0, 1, 2].map((i) => ({
+        id: uid(),
+        title: '',
+        note: '',
+        cover: { kind: 'color', value: COVER_COLORS[(i * 3) % DEFAULT_COVER_COUNT] },
+      })),
+    };
+  }
   return b;
 }
 
@@ -465,6 +476,7 @@ function seedState(): AppState {
       sort: 'manual',
       statusFilter: 'All',
       cardSize: 'medium',
+      groupBy: 'none',
     },
   };
 }

@@ -514,8 +514,36 @@ textarea:focus-visible {
 }
 
 .slash-menu {
-  width: 310px;
+  position: absolute;
+  left: 0;
+  z-index: 50;
+  width: min(310px, 100%);
+  max-height: min(320px, 50vh);
+  overflow-y: auto;
   padding: 6px;
+  background: var(--nav);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  border: 1px solid var(--hair);
+  border-radius: var(--r-sm);
+  box-shadow: var(--pop-shadow);
+  animation: pop 0.25s var(--ease);
+  scroll-margin: 16px;
+}
+@media (max-width: 760px) {
+  .slash-menu {
+    width: 100%;
+    max-height: 40vh;
+  }
+  .slash-menu .kind-glyph {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    font-size: 0.85rem;
+  }
+  .slash-item {
+    padding: 4px 6px;
+  }
 }
 .slash-item {
   display: flex;
@@ -1480,6 +1508,7 @@ button.crumb:hover {
   top: 4px;
   display: flex;
   opacity: 0;
+  pointer-events: none;
   transition: opacity 0.2s ease;
 }
 .block-h1 .gutter {
@@ -1494,6 +1523,7 @@ button.crumb:hover {
 .block:hover > .gutter,
 .block.menu-open > .gutter {
   opacity: 1;
+  pointer-events: auto;
 }
 .gutter-btn {
   display: inline-flex;
@@ -1851,6 +1881,261 @@ button.crumb:hover {
   padding-top: 8px;
 }
 
+/* ---------- gallery block (inside a goal) ---------- */
+
+.gallery-block {
+  margin: 8px 0;
+}
+.gallery-block-bar {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 8px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.gallery-block:hover .gallery-block-bar,
+.gallery-block:focus-within .gallery-block-bar {
+  opacity: 1;
+}
+@media (hover: none) {
+  .gallery-block-bar {
+    opacity: 1;
+  }
+}
+.seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--chip);
+}
+.seg button {
+  padding: 3px 10px;
+  border-radius: 8px;
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: var(--fg2);
+}
+.seg button.on {
+  background: var(--field);
+  color: var(--fg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+.gallery-block-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+}
+.gallery-block.size-medium .gallery-block-grid {
+  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+@media (max-width: 760px) {
+  .gallery-block-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .gallery-block.size-medium .gallery-block-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .gallery-block:not(.size-medium) .gb-title {
+    font-size: 0.8rem;
+    padding: 8px 8px 0;
+  }
+  .gallery-block:not(.size-medium) .gb-note {
+    font-size: 0.72rem;
+    padding: 0 8px 10px;
+  }
+}
+.gb-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--r-sm);
+  background: var(--card);
+  overflow: hidden;
+}
+.gb-cover {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 4 / 3;
+  background: var(--chip);
+  color: var(--fg2);
+}
+.size-medium .gb-cover {
+  aspect-ratio: 16 / 10;
+}
+.gb-cover-hint {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--nav);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  color: var(--fg);
+  font-size: 0.7rem;
+  font-weight: 500;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.gb-cover:hover .gb-cover-hint {
+  opacity: 1;
+}
+.gb-remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--nav);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  color: var(--fg);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.gb-card:hover .gb-remove,
+.gb-card:focus-within .gb-remove {
+  opacity: 1;
+}
+@media (hover: none) {
+  .gb-remove {
+    opacity: 0.85;
+  }
+}
+.gb-title,
+.gb-note {
+  border: 0;
+  outline: 0;
+  background: transparent;
+  padding: 0 12px;
+  min-width: 0;
+}
+.gb-title {
+  padding-top: 10px;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+.gb-note {
+  padding-bottom: 12px;
+  font-size: 0.8rem;
+  color: var(--fg2);
+}
+.gb-add {
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 120px;
+  background: transparent;
+  border: 1.5px dashed var(--line);
+  color: var(--fg2);
+  font-size: 0.86rem;
+  font-weight: 500;
+}
+.size-medium .gb-add {
+  min-height: 160px;
+}
+.gb-add:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ---------- board (gallery grouped by status / priority) ---------- */
+
+.board {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  padding-bottom: 12px;
+  scroll-snap-type: x proximity;
+  margin-right: -32px;
+  padding-right: 32px;
+}
+.board-col {
+  flex: 0 0 272px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--r);
+  background: var(--card);
+  scroll-snap-align: start;
+  transition: box-shadow 0.2s ease;
+}
+.board-col.over {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.board-col-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 4px;
+}
+.board-count {
+  font-size: 0.8rem;
+  color: var(--fg2);
+  font-variant-numeric: tabular-nums;
+}
+.board-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 40px;
+}
+.board-cards .card {
+  background: var(--bg);
+}
+.board-cards .card-cover {
+  height: 90px;
+}
+.board-cards .card-body {
+  padding: 12px 14px 14px;
+  gap: 8px;
+}
+.board-cards .card-title {
+  font-size: 1rem;
+}
+.board-empty {
+  padding: 14px;
+  border-radius: var(--r-sm);
+  border: 1.5px dashed var(--line);
+  color: var(--fg3);
+  font-size: 0.84rem;
+  text-align: center;
+}
+.board-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  color: var(--fg2);
+  font-size: 0.86rem;
+  font-weight: 500;
+  align-self: flex-start;
+}
+.board-add:hover {
+  background: var(--chip);
+  color: var(--accent);
+}
+@media (max-width: 760px) {
+  .board {
+    margin-right: -16px;
+    padding-right: 16px;
+  }
+  .board-col {
+    flex-basis: 78vw;
+  }
+}
+
 /* ---------- bin & toast ---------- */
 
 .btn.danger {
@@ -2090,10 +2375,12 @@ button.crumb:hover {
   }
   .block:hover > .gutter {
     opacity: 0;
+    pointer-events: none;
   }
   .block:focus-within > .gutter,
   .block.menu-open > .gutter {
     opacity: 1;
+    pointer-events: auto;
   }
   .block:focus-within > .block-content {
     padding-right: 56px;

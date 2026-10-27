@@ -7,16 +7,17 @@ import {
   reorderGoal,
   restoreGoal,
   setPrefs,
+  updateGoal,
   updatePage,
   useAppState,
 } from '../store';
 import { navigate } from '../route';
 import { showToast } from '../toast';
-import type { Goal, Page, SortKey, Status } from '../types';
-import { STATUSES } from '../types';
+import type { Goal, Page, Priority, SortKey, Status } from '../types';
+import { PRIORITIES, STATUSES } from '../types';
 import { PRIORITY_RANK, daysUntil, formatDate, goalProgress, isOverdue } from '../utils';
 import { AutoTextarea } from './AutoTextarea';
-import { CopyIcon, DotsIcon, PlusIcon, TrashIcon } from './Icons';
+import { CopyIcon, DotsIcon, MoveIcon, PlusIcon, TrashIcon } from './Icons';
 import { Menu, Popover, usePopover } from './Popover';
 import { EmojiPicker, PriorityPill, StatusPill, coverStyle } from './Pickers';
 
@@ -52,14 +53,14 @@ function sortGoals(goals: Goal[], key: SortKey): Goal[] {
 
 export function PageView({ page }: { page: Page }) {
   const state = useAppState();
-  const { sort, statusFilter, cardSize } = state.prefs;
+  const { sort, statusFilter, cardSize, groupBy } = state.prefs;
   const emoji = usePopover();
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropBefore, setDropBefore] = useState<string | null | undefined>(undefined);
 
   const all = pageGoals(state, page.id);
   const goals = sortGoals(statusFilter === 'All' ? all : all.filter((g) => g.status === statusFilter), sort);
-  const canDrag = sort === 'manual' && statusFilter === 'All';
+  const canDrag = sort === 'manual' && statusFilter === 'All' && groupBy === 'none';
 
   const completed = all.filter((g) => g.status === 'Completed').length;
   const inProgress = all.filter((g) => g.status === 'In progress').length;
@@ -114,6 +115,17 @@ export function PageView({ page }: { page: Page }) {
         <span className="toolbar-title">Gallery</span>
         <span className="spacer" />
         <label className="select-wrap">
+          <span>Group</span>
+          <select
+            value={groupBy}
+            onChange={(e) => setPrefs({ groupBy: e.target.value as typeof groupBy })}
+          >
+            <option value="none">None</option>
+            <option value="status">By status</option>
+            <option value="priority">By priority</option>
+          </select>
+        </label>
+        <label className="select-wrap">
           <span>Status</span>
           <select
             value={statusFilter}
@@ -151,6 +163,9 @@ export function PageView({ page }: { page: Page }) {
         </button>
       </div>
 
+      {groupBy !== 'none' ? (
+        <Board goals={goals} groupBy={groupBy} pageId={page.id} />
+      ) : (
       <div
         className={`gallery size-${cardSize}`}
         onDragOver={(e) => {
@@ -190,6 +205,7 @@ export function PageView({ page }: { page: Page }) {
           <span>New goal</span>
         </button>
       </div>
+      )}
       {statusFilter !== 'All' && goals.length === 0 && all.length > 0 && (
         <p className="muted center">No goals with status “{statusFilter}”.</p>
       )}
@@ -214,6 +230,8 @@ export function PageView({ page }: { page: Page }) {
 
 interface GoalCardProps {
   goal: Goal;
+  /** Extra menu entries, e.g. "Move to In progress" on the board (phones can't drag). */
+  moveOptions?: { label: string; onClick: () => void }[];
   draggable: boolean;
   dragging: boolean;
   dropSide: 'before' | 'after' | null;
@@ -222,7 +240,7 @@ interface GoalCardProps {
   onDragOverCard: (before: boolean) => void;
 }
 
-function GoalCard({ goal, draggable, dragging, dropSide, ...drag }: GoalCardProps) {
+function GoalCard({ goal, draggable, dragging, dropSide, moveOptions = [], ...drag }: GoalCardProps) {
   const menu = usePopover();
   const progress = goalProgress(goal);
   const overdue = isOverdue(goal);
@@ -308,6 +326,8 @@ function GoalCard({ goal, draggable, dragging, dropSide, ...drag }: GoalCardProp
               items={[
                 { label: 'Open', onClick: () => navigate({ view: 'goal', id: goal.id }) },
                 { label: 'Duplicate', icon: <CopyIcon />, onClick: () => duplicateGoal(goal.id) },
+                ...(moveOptions.length ? (['sep'] as const) : []),
+                ...moveOptions.map((m) => ({ ...m, icon: <MoveIcon /> })),
                 'sep',
                 {
                   label: 'Move to bin',
@@ -326,6 +346,104 @@ function GoalCard({ goal, draggable, dragging, dropSide, ...drag }: GoalCardProp
           </div>
         </Popover>
       )}
+    </div>
+  );
+}
+
+interface Column {
+  key: string;
+  title: string;
+  label: React.ReactNode;
+  value: Status | Priority | null;
+}
+
+/** Goals laid out side by side in one column per status or priority. Drag a card to another column to change it. */
+function Board({ goals, groupBy, pageId }: { goals: Goal[]; groupBy: 'status' | 'priority'; pageId: string }) {
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overCol, setOverCol] = useState<string | null>(null);
+
+  const columns: Column[] =
+    groupBy === 'status'
+      ? STATUSES.map((s) => ({ key: s, title: s, label: <StatusPill value={s} />, value: s }))
+      : [
+          ...[...PRIORITIES].reverse().map((p) => ({ key: p, title: p, label: <PriorityPill value={p} />, value: p })),
+          { key: 'none', title: 'No priority', label: <span className="pill pill-gray">No priority</span>, value: null },
+        ];
+
+  const valueOf = (g: Goal) => (groupBy === 'status' ? g.status : g.priority);
+  const moveTo = (g: Goal, col: Column) => {
+    if (valueOf(g) === col.value) return;
+    if (groupBy === 'status') {
+      const status = col.value as Status;
+      updateGoal(g.id, status === 'Completed' && g.progressMode === 'manual' ? { status, progress: 100 } : { status });
+    } else {
+      updateGoal(g.id, { priority: col.value as Priority | null });
+    }
+  };
+  const endDrag = () => {
+    setDragId(null);
+    setOverCol(null);
+  };
+
+  return (
+    <div className="board">
+      {columns.map((col) => {
+        const list = goals.filter((g) => valueOf(g) === col.value);
+        return (
+          <section
+            key={col.key}
+            className={`board-col ${overCol === col.key ? 'over' : ''}`}
+            onDragOver={(e) => {
+              if (!dragId) return;
+              e.preventDefault();
+              setOverCol(col.key);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              const g = goals.find((x) => x.id === dragId);
+              if (g) moveTo(g, col);
+              endDrag();
+            }}
+          >
+            <header className="board-col-head">
+              {col.label}
+              <span className="board-count">{list.length}</span>
+            </header>
+            <div className="board-cards size-small">
+              {list.map((g) => (
+                <GoalCard
+                  key={g.id}
+                  goal={g}
+                  draggable
+                  dragging={dragId === g.id}
+                  dropSide={null}
+                  onDragStart={() => setDragId(g.id)}
+                  onDragEnd={endDrag}
+                  onDragOverCard={() => setOverCol(col.key)}
+                  moveOptions={columns
+                    .filter((c) => c.key !== col.key)
+                    .map((c) => ({ label: `Move to ${c.title}`, onClick: () => moveTo(g, c) }))}
+                />
+              ))}
+              {list.length === 0 && <div className="board-empty">{dragId ? 'Drop here' : 'No goals'}</div>}
+            </div>
+            <button
+              className="board-add"
+              onClick={() =>
+                navigate({
+                  view: 'goal',
+                  id: addGoal(
+                    pageId,
+                    groupBy === 'status' ? { status: col.value as Status } : { priority: col.value as Priority | null },
+                  ),
+                })
+              }
+            >
+              <PlusIcon /> New
+            </button>
+          </section>
+        );
+      })}
     </div>
   );
 }
