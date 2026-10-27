@@ -77,11 +77,17 @@ export function Sidebar() {
     <aside className="sidebar">
       <div className="sidebar-head">
         <span className="workspace">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <circle cx="12" cy="12" r="8.5" fill="none" stroke="var(--chip)" strokeWidth="3.5" />
-            <path d="M12 3.5a8.5 8.5 0 0 1 8 5.6" fill="none" stroke="var(--c1)" strokeWidth="3.5" />
-            <path d="M20.3 10.6a8.5 8.5 0 0 1-3.4 8.4" fill="none" stroke="var(--c2)" strokeWidth="3.5" />
-            <path d="M15.4 19.9a8.5 8.5 0 0 1-6.4.1" fill="none" stroke="var(--c3)" strokeWidth="3.5" />
+          <svg viewBox="0 0 100 100" aria-hidden="true">
+            <circle cx="46" cy="54" r="32" fill="var(--accent)" />
+            <circle cx="46" cy="54" r="22" fill="var(--sidebar)" />
+            <circle cx="46" cy="54" r="12" fill="var(--accent)" />
+            <line x1="46" y1="54" x2="80" y2="20" stroke="var(--fg)" strokeWidth="6" strokeLinecap="round" />
+            <path
+              d="M80 20 L78 8 M80 20 L92 22 M73 27 L71 15 M73 27 L85 29"
+              stroke="var(--c2)"
+              strokeWidth="6"
+              strokeLinecap="round"
+            />
           </svg>
           Goal Planner
         </span>

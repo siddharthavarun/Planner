@@ -662,8 +662,8 @@ textarea:focus-visible {
   letter-spacing: -0.01em;
 }
 .workspace svg {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
 }
 .sidebar-search {
   display: flex;
