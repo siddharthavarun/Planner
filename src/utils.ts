@@ -64,7 +64,7 @@ export function goalProgress(goal: Goal): number {
 
 export const PRIORITY_COLORS: Record<Priority, string> = {
   Low: 'gray',
-  Medium: 'yellow',
+  Medium: 'blue',
   High: 'orange',
   Critical: 'red',
 };
@@ -79,28 +79,25 @@ export const STATUS_COLORS: Record<Status, string> = {
   Cancelled: 'red',
 };
 
+// Pocket Ledger's category palette comes first; the variables adapt to light and dark mode.
 export const COVER_COLORS = [
-  'linear-gradient(135deg, #f6d365 0%, #fda085 100%)',
-  'linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%)',
-  'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)',
-  'linear-gradient(135deg, #fccb90 0%, #d57eeb 100%)',
-  'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-  'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-  'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-  'linear-gradient(135deg, #30cfd0 0%, #330867 100%)',
-  'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)',
-  'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-  'linear-gradient(135deg, #0ba360 0%, #3cba92 100%)',
-  'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-  '#e03e3e',
-  '#d9730d',
-  '#dfab01',
-  '#0f7b6c',
-  '#0b6e99',
-  '#6940a5',
-  '#ad1a72',
-  '#37352f',
+  'var(--c1)',
+  'var(--c2)',
+  'var(--c3)',
+  'var(--c4)',
+  'var(--c5)',
+  'var(--c6)',
+  'var(--c7)',
+  'var(--c8)',
+  'linear-gradient(135deg, var(--c1), var(--c8))',
+  'linear-gradient(135deg, var(--c2), var(--c4))',
+  'linear-gradient(135deg, var(--c7), var(--c5))',
+  'linear-gradient(135deg, var(--c3), var(--c8))',
+  'linear-gradient(135deg, #1d1d1f, #6e6e73)',
+  'linear-gradient(135deg, #f5f5f7, #d2d2d7)',
+  'linear-gradient(135deg, var(--c4), var(--c5))',
 ];
+export const DEFAULT_COVER_COUNT = 8;
 
 /**
  * Reads an image file and downsizes it so covers and inline images stay small

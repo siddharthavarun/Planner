@@ -77,7 +77,13 @@ export function Sidebar() {
     <aside className="sidebar">
       <div className="sidebar-head">
         <span className="workspace">
-          <span className="workspace-icon">🎯</span> Goal Planner
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="8.5" fill="none" stroke="var(--chip)" strokeWidth="3.5" />
+            <path d="M12 3.5a8.5 8.5 0 0 1 8 5.6" fill="none" stroke="var(--c1)" strokeWidth="3.5" />
+            <path d="M20.3 10.6a8.5 8.5 0 0 1-3.4 8.4" fill="none" stroke="var(--c2)" strokeWidth="3.5" />
+            <path d="M15.4 19.9a8.5 8.5 0 0 1-6.4.1" fill="none" stroke="var(--c3)" strokeWidth="3.5" />
+          </svg>
+          Goal Planner
         </span>
         <button
           className="icon-btn"

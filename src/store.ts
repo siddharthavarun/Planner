@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import { dbGet, dbSet } from './db';
 import type { AppState, Block, BlockType, Goal, Page } from './types';
-import { COVER_COLORS, nowIso, uid } from './utils';
+import { COVER_COLORS, DEFAULT_COVER_COUNT, nowIso, uid } from './utils';
 
 const KEY = 'state';
 
@@ -158,7 +158,7 @@ export function addGoal(pageId: string, partial: Partial<Goal> = {}): string {
     pageId,
     title: '',
     icon: null,
-    cover: { kind: 'color', value: COVER_COLORS[Math.floor(Math.random() * 12)] },
+    cover: { kind: 'color', value: COVER_COLORS[Math.floor(Math.random() * DEFAULT_COVER_COUNT)] },
     createdAt: now,
     updatedAt: now,
     targetDate: null,
@@ -298,7 +298,7 @@ function seedState(): AppState {
       pageId,
       title: 'Run a half marathon',
       icon: '🏃',
-      cover: { kind: 'color', value: COVER_COLORS[5] },
+      cover: { kind: 'color', value: COVER_COLORS[2] },
       createdAt: now,
       updatedAt: now,
       targetDate: inMonths(4),
@@ -333,7 +333,7 @@ function seedState(): AppState {
       pageId,
       title: 'Read 24 books',
       icon: '📚',
-      cover: { kind: 'color', value: COVER_COLORS[2] },
+      cover: { kind: 'color', value: COVER_COLORS[6] },
       createdAt: now,
       updatedAt: now,
       targetDate: `${year}-12-31`,
@@ -354,7 +354,7 @@ function seedState(): AppState {
       pageId,
       title: 'Save an emergency fund',
       icon: '💰',
-      cover: { kind: 'color', value: COVER_COLORS[0] },
+      cover: { kind: 'color', value: COVER_COLORS[1] },
       createdAt: now,
       updatedAt: now,
       targetDate: inMonths(8),
