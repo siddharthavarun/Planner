@@ -118,10 +118,12 @@ interface Props {
   blocks: Block[];
   onChange: (blocks: Block[]) => void;
   focusFirstRef?: MutableRefObject<() => void>;
+  /** Appends a to-do at the end of the body and focuses it. */
+  addTodoRef?: MutableRefObject<() => void>;
   onExitTop?: () => void;
 }
 
-export function BlockEditor({ blocks, onChange, focusFirstRef, onExitTop }: Props) {
+export function BlockEditor({ blocks, onChange, focusFirstRef, addTodoRef, onExitTop }: Props) {
   const blocksRef = useRef(blocks);
   blocksRef.current = blocks;
   const rootRef = useRef<HTMLDivElement>(null);
@@ -168,6 +170,23 @@ export function BlockEditor({ blocks, onChange, focusFirstRef, onExitTop }: Prop
         commit([b, ...blocksRef.current]);
         focusBlock(b.id, 'start');
       }
+    };
+  }
+
+  if (addTodoRef) {
+    addTodoRef.current = () => {
+      const list = blocksRef.current;
+      const last = list[list.length - 1];
+      // Reuse a trailing empty line rather than leaving a gap above the new to-do.
+      const reuse = last && last.type === 'paragraph' && last.text === '';
+      const todo: Block = reuse ? { ...convert(last, 'todo'), text: '' } : newBlock('todo');
+      commit(reuse ? [...list.slice(0, -1), todo] : [...list, todo]);
+      focusBlock(todo.id, 'start');
+      requestAnimationFrame(() =>
+        rootRef.current
+          ?.querySelector(`[data-block-id="${todo.id}"]`)
+          ?.scrollIntoView({ block: 'center', behavior: 'smooth' }),
+      );
     };
   }
 

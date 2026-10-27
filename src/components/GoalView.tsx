@@ -14,6 +14,7 @@ import {
   FlagIcon,
   ImageIcon,
   MoveIcon,
+  PlusIcon,
   ProgressIcon,
   SmileIcon,
   StatusIcon,
@@ -43,6 +44,7 @@ export function GoalView({ goal }: { goal: Goal }) {
   const coverRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const editorFocusFirst = useRef<() => void>(() => {});
+  const editorAddTodo = useRef<() => void>(() => {});
 
   const set = (patch: Partial<Goal>) => updateGoal(goal.id, patch);
   const progress = goalProgress(goal);
@@ -169,9 +171,9 @@ export function GoalView({ goal }: { goal: Goal }) {
 
           <div className="prop">
             <span className="prop-name">
-              <CalendarIcon /> Target date
+              <CalendarIcon /> Target
             </span>
-            <span className="prop-value">
+            <span className="prop-value date-prop">
               <input
                 type="date"
                 className={`date-input ${overdue ? 'overdue' : ''}`}
@@ -181,12 +183,12 @@ export function GoalView({ goal }: { goal: Goal }) {
               {goal.targetDate && (
                 <>
                   {goal.status !== 'Completed' && goal.status !== 'Cancelled' && (
-                    <span className={`muted small ${overdue ? 'overdue' : ''}`}>
+                    <span className={`days-left ${overdue ? 'overdue' : ''}`}>
                       {(() => {
                         const d = daysUntil(goal.targetDate);
-                        if (d < 0) return `${-d} day${d === -1 ? '' : 's'} overdue`;
+                        if (d < 0) return `${-d}d overdue`;
                         if (d === 0) return 'Due today';
-                        return `${d} day${d === 1 ? '' : 's'} left`;
+                        return `${d}d left`;
                       })()}
                     </span>
                   )}
@@ -216,19 +218,37 @@ export function GoalView({ goal }: { goal: Goal }) {
             </button>
           </div>
 
-          <div className="prop">
+          <div className="prop prop-top">
             <span className="prop-name">
               <ProgressIcon /> Progress
             </span>
-            <span className="prop-value progress-prop">
-              <div className="progress-track big">
-                <div
-                  className={`progress-fill ${progress === 100 ? 'done' : ''}`}
-                  style={{ width: `${progress}%` }}
-                />
+            <div className="prop-value progress-prop">
+              <div className="progress-line">
+                <div className="progress-track">
+                  <div
+                    className={`progress-fill ${progress === 100 ? 'done' : ''}`}
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+                <span className="progress-pct">{progress}%</span>
               </div>
-              {goal.progressMode === 'manual' ? (
-                <>
+              <div className="progress-controls">
+                <select
+                  className="mode-select"
+                  value={goal.progressMode}
+                  onChange={(e) =>
+                    set({
+                      progressMode: e.target.value as Goal['progressMode'],
+                      // Carry the computed value over so switching to manual doesn't jump.
+                      progress: e.target.value === 'manual' ? progress : goal.progress,
+                    })
+                  }
+                  aria-label="How progress is measured"
+                >
+                  <option value="manual">Set it myself</option>
+                  <option value="auto">Count ticked to-dos</option>
+                </select>
+                {goal.progressMode === 'manual' ? (
                   <input
                     type="range"
                     min={0}
@@ -238,42 +258,20 @@ export function GoalView({ goal }: { goal: Goal }) {
                     onChange={(e) => set({ progress: Number(e.target.value) })}
                     aria-label="Progress"
                   />
-                  <input
-                    type="number"
-                    className="num-input"
-                    min={0}
-                    max={100}
-                    value={goal.progress}
-                    onChange={(e) =>
-                      set({ progress: Math.max(0, Math.min(100, Math.round(Number(e.target.value) || 0))) })
-                    }
-                  />
-                  <span className="muted">%</span>
-                </>
-              ) : (
-                <span className="progress-num">
-                  {progress}%{' '}
-                  <span className="muted small">
-                    ({checklist.done}/{checklist.total} to-dos{checklist.total === 0 ? ' — add to-do blocks below' : ''})
-                  </span>
-                </span>
+                ) : (
+                  <button className="ghost-btn add-todo" onClick={() => editorAddTodo.current()}>
+                    <PlusIcon /> Add a to-do
+                  </button>
+                )}
+              </div>
+              {goal.progressMode === 'auto' && (
+                <p className="progress-hint">
+                  {checklist.total === 0
+                    ? 'No to-dos yet. Add to-do items to the notes below; ticking them fills the bar.'
+                    : `${checklist.done} of ${checklist.total} to-dos ticked in the notes below.`}
+                </p>
               )}
-              <select
-                className="mode-select"
-                value={goal.progressMode}
-                onChange={(e) =>
-                  set({
-                    progressMode: e.target.value as Goal['progressMode'],
-                    // Carry the computed value over so switching to manual doesn't jump.
-                    progress: e.target.value === 'manual' ? progress : goal.progress,
-                  })
-                }
-                title="How progress is measured"
-              >
-                <option value="manual">Set manually</option>
-                <option value="auto">From to-do checklist</option>
-              </select>
-            </span>
+            </div>
           </div>
         </div>
 
@@ -283,6 +281,7 @@ export function GoalView({ goal }: { goal: Goal }) {
           blocks={goal.blocks}
           onChange={(blocks) => updateGoal(goal.id, { blocks })}
           focusFirstRef={editorFocusFirst}
+          addTodoRef={editorAddTodo}
           onExitTop={() => titleRef.current?.focus()}
         />
       </div>

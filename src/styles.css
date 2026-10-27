@@ -1261,10 +1261,18 @@ button.crumb:hover {
 .prop:first-child {
   border-top: 0;
 }
+.prop-top {
+  align-items: flex-start;
+}
+.prop-top .prop-name {
+  min-height: 42px;
+  padding-top: 6px;
+}
 .prop-name {
   display: flex;
   align-items: center;
   gap: 10px;
+  white-space: nowrap;
   width: 160px;
   flex-shrink: 0;
   color: var(--fg2);
@@ -1299,9 +1307,74 @@ button.crumb:hover {
 .date-input:focus {
   background: var(--chip);
 }
-.progress-prop input[type='range'] {
-  width: 140px;
+.date-prop {
+  flex-wrap: nowrap;
+  gap: 6px;
+}
+.date-input {
+  -webkit-appearance: none;
+  appearance: none;
+  width: auto;
+  min-width: 0;
+  flex: 0 1 auto;
+  padding-left: 4px;
+  padding-right: 4px;
+  text-align: left;
+}
+.date-input::-webkit-date-and-time-value {
+  text-align: left;
+}
+.days-left {
+  font-size: 0.76rem;
+  font-weight: 400;
+  color: var(--fg2);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.date-prop .icon-btn {
+  margin-left: auto;
+}
+
+.progress-prop {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 8px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+.progress-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.progress-pct {
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  min-width: 40px;
+  text-align: right;
+}
+.progress-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+.progress-controls input[type='range'] {
+  flex: 1;
+  min-width: 120px;
   accent-color: var(--accent);
+}
+.add-todo {
+  color: var(--accent);
+}
+.progress-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--fg2);
+  line-height: 1.4;
 }
 .num-input {
   width: 64px;
@@ -1802,20 +1875,19 @@ button.crumb:hover {
     border-radius: var(--r);
   }
   .goal-content {
-    padding: 16px 16px 96px 44px;
+    padding: 16px 20px 96px;
   }
   .goal-content.has-cover {
     padding-top: 0;
   }
-  .gutter {
-    left: -44px;
-  }
-  .gutter-btn {
-    width: 22px;
-  }
   .prop-name {
-    width: 116px;
+    width: 100px;
+    gap: 8px;
     padding: 0 8px;
+  }
+  .prop-value {
+    padding-left: 6px;
+    padding-right: 6px;
   }
   .edited {
     display: none;
@@ -1830,6 +1902,25 @@ button.crumb:hover {
   .gallery.size-small,
   .gallery.size-large {
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+  }
+}
+
+/* Touch screens have no hover, so the block handles sit at the right of the block being edited. */
+@media (hover: none), (max-width: 760px) {
+  .gutter {
+    left: auto;
+    right: 0;
+    top: 2px;
+  }
+  .block:hover > .gutter {
+    opacity: 0;
+  }
+  .block:focus-within > .gutter,
+  .block.menu-open > .gutter {
+    opacity: 1;
+  }
+  .block:focus-within > .block-content {
+    padding-right: 56px;
   }
 }
 
