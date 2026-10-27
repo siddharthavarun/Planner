@@ -112,6 +112,7 @@ export function BinView() {
               }
               const goal = state.goals[item.id];
               const from = state.pages.find((p) => p.id === goal.pageId);
+              const parent = goal.parentId ? state.goals[goal.parentId] : undefined;
               return (
                 <li key={item.id} className="bin-item">
                   <span className="bin-thumb" style={coverStyle(goal.cover)}>
@@ -120,7 +121,10 @@ export function BinView() {
                   <span className="bin-main">
                     <b>{goal.title || 'Untitled'}</b>
                     <span>
-                      Goal{from ? ` in ${from.title || 'Untitled'}` : ''} · deleted {timeAgo(item.deletedAt)} ·{' '}
+                      {parent
+                        ? `Card in ${parent.title || 'Untitled'}`
+                        : `Goal${from ? ` in ${from.title || 'Untitled'}` : ''}`}{' '}
+                      · deleted {timeAgo(item.deletedAt)} ·{' '}
                       {daysLeft(item.deletedAt)} days left
                     </span>
                   </span>

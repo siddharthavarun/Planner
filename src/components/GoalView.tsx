@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react';
 import {
+  ancestors,
+  childIds,
   deleteGoal,
   duplicateGoal,
   livePages,
@@ -78,9 +80,29 @@ export function GoalView({ goal }: { goal: Goal }) {
     window.addEventListener('mouseup', onUp);
   };
 
+  const parents = ancestors(state, goal);
+  const parent = parents[parents.length - 1];
+
+  // Removing a gallery block sends its sub-goals to the bin; Undo puts the block and its cards back.
+  const changeBlocks = (blocks: Goal['blocks']) => {
+    const before = goal.blocks;
+    const kept = new Set(childIds({ ...goal, blocks }));
+    const dropped = childIds(goal).filter((id) => !kept.has(id) && !state.goals[id]?.deletedAt);
+    updateGoal(goal.id, { blocks });
+    if (dropped.length === 0) return;
+    dropped.forEach(deleteGoal);
+    showToast(`Moved ${dropped.length} card${dropped.length === 1 ? '' : 's'} to the bin`, {
+      label: 'Undo',
+      run: () => {
+        updateGoal(goal.id, { blocks: before });
+        dropped.forEach((id) => restoreGoal(id));
+      },
+    });
+  };
+
   const remove = () => {
     deleteGoal(goal.id);
-    navigate(page ? { view: 'page', id: page.id } : { view: 'home' }, true);
+    navigate(parent ? { view: 'goal', id: parent.id } : page ? { view: 'page', id: page.id } : { view: 'home' }, true);
     showToast(`Moved “${goal.title || 'Untitled'}” to the bin`, {
       label: 'Undo',
       run: () => {
@@ -102,6 +124,14 @@ export function GoalView({ goal }: { goal: Goal }) {
               <span className="crumb-sep">/</span>
             </>
           )}
+          {parents.map((p) => (
+            <span key={p.id} className="crumb-group">
+              <button className="crumb" onClick={() => navigate({ view: 'goal', id: p.id })}>
+                {p.icon && <span>{p.icon}</span>} {p.title || 'Untitled'}
+              </button>
+              <span className="crumb-sep">/</span>
+            </span>
+          ))}
           <span className="crumb current">
             {goal.icon && <span>{goal.icon}</span>} {goal.title || 'Untitled'}
           </span>
@@ -306,8 +336,9 @@ export function GoalView({ goal }: { goal: Goal }) {
         <div className="divider" />
 
         <BlockEditor
+          goalId={goal.id}
           blocks={goal.blocks}
-          onChange={(blocks) => updateGoal(goal.id, { blocks })}
+          onChange={changeBlocks}
           focusFirstRef={editorFocusFirst}
           addTodoRef={editorAddTodo}
           onExitTop={() => titleRef.current?.focus()}

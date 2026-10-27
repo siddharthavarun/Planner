@@ -240,7 +240,7 @@ interface GoalCardProps {
   onDragOverCard: (before: boolean) => void;
 }
 
-function GoalCard({ goal, draggable, dragging, dropSide, moveOptions = [], ...drag }: GoalCardProps) {
+export function GoalCard({ goal, draggable, dragging, dropSide, moveOptions = [], ...drag }: GoalCardProps) {
   const menu = usePopover();
   const progress = goalProgress(goal);
   const overdue = isOverdue(goal);

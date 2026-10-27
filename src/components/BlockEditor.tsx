@@ -117,6 +117,8 @@ interface SlashState {
 }
 
 interface Props {
+  /** The goal these blocks belong to (galleries add sub-goals to it). */
+  goalId: string;
   blocks: Block[];
   onChange: (blocks: Block[]) => void;
   focusFirstRef?: MutableRefObject<() => void>;
@@ -125,7 +127,7 @@ interface Props {
   onExitTop?: () => void;
 }
 
-export function BlockEditor({ blocks, onChange, focusFirstRef, addTodoRef, onExitTop }: Props) {
+export function BlockEditor({ goalId, blocks, onChange, focusFirstRef, addTodoRef, onExitTop }: Props) {
   const blocksRef = useRef(blocks);
   blocksRef.current = blocks;
   const rootRef = useRef<HTMLDivElement>(null);
@@ -618,8 +620,11 @@ export function BlockEditor({ blocks, onChange, focusFirstRef, addTodoRef, onExi
       case 'gallery':
         return (
           <GalleryBlock
-            gallery={block.gallery ?? { size: 'small', items: [] }}
+            goalId={goalId}
+            blockId={block.id}
+            gallery={block.gallery ?? { size: 'small', goalIds: [] }}
             onChange={(gallery) => update(block.id, { gallery })}
+            onDelete={() => remove(block.id)}
           />
         );
       case 'image':

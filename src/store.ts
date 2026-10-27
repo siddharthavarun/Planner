@@ -85,15 +85,63 @@ function purgeExpired(s: AppState): AppState {
   const cutoff = new Date(Date.now() - BIN_DAYS * 86_400_000).toISOString();
   const old = (d?: string) => !!d && d < cutoff;
   const goneP = new Set(s.pages.filter((p) => old(p.deletedAt)).map((p) => p.id));
-  const goals = Object.fromEntries(
-    Object.entries(s.goals).filter(([, g]) => !old(g.deletedAt) && !goneP.has(g.pageId)),
+  const goals = dropOrphans(
+    Object.fromEntries(Object.entries(s.goals).filter(([, g]) => !old(g.deletedAt) && !goneP.has(g.pageId))),
   );
   return { ...s, pages: s.pages.filter((p) => !goneP.has(p.id)), goals };
 }
 
 function withDefaults(s: AppState): AppState {
   const fresh = seedState();
-  return { ...s, prefs: { ...fresh.prefs, ...s.prefs } };
+  return migrateGalleries({ ...s, prefs: { ...fresh.prefs, ...s.prefs } });
+}
+
+/** Turns cards from the first gallery block (title, note, picture) into sub-goals. */
+function migrateGalleries(s: AppState): AppState {
+  const goals = { ...s.goals };
+  let changed = false;
+  for (const g of Object.values(s.goals)) {
+    if (!g.blocks.some((b) => b.type === 'gallery' && (b.gallery?.items || !b.gallery?.goalIds))) continue;
+    changed = true;
+    const blocks = g.blocks.map((b) => {
+      if (b.type !== 'gallery' || !b.gallery) return b;
+      const ids = [...(b.gallery.goalIds ?? [])];
+      for (const it of b.gallery.items ?? []) {
+        const child = makeGoal(g.pageId, {
+          parentId: g.id,
+          title: it.title,
+          cover: it.cover,
+          blocks: [newBlock('paragraph', it.note)],
+        });
+        goals[child.id] = child;
+        ids.push(child.id);
+      }
+      return { ...b, gallery: { size: b.gallery.size, goalIds: ids } };
+    });
+    goals[g.id] = { ...g, blocks };
+  }
+  return changed ? { ...s, goals } : s;
+}
+
+/** Ids of the sub-goals shown in a goal's galleries. */
+export function childIds(g: Goal): string[] {
+  return g.blocks.flatMap((b) => (b.type === 'gallery' ? (b.gallery?.goalIds ?? []) : []));
+}
+
+/** Removes goals whose parent no longer exists (after something was deleted for good). */
+function dropOrphans(goals: Record<string, Goal>): Record<string, Goal> {
+  const out = { ...goals };
+  let removed = true;
+  while (removed) {
+    removed = false;
+    for (const g of Object.values(out)) {
+      if (g.parentId && !out[g.parentId]) {
+        delete out[g.id];
+        removed = true;
+      }
+    }
+  }
+  return out;
 }
 
 // ---------- blocks ----------
@@ -108,17 +156,7 @@ export function newBlock(type: BlockType = 'paragraph', text = ''): Block {
   if (type === 'callout') b.emoji = '💡';
   if (type === 'table') b.table = { header: true, rows: [['', '', ''], ['', '', ''], ['', '', '']] };
   if (type === 'image') b.image = { src: '', caption: '' };
-  if (type === 'gallery') {
-    b.gallery = {
-      size: 'small',
-      items: [0, 1, 2].map((i) => ({
-        id: uid(),
-        title: '',
-        note: '',
-        cover: { kind: 'color', value: COVER_COLORS[(i * 3) % DEFAULT_COVER_COUNT] },
-      })),
-    };
-  }
+  if (type === 'gallery') b.gallery = { size: 'small', goalIds: [] };
   return b;
 }
 
@@ -148,7 +186,18 @@ export function livePages(s: AppState): Page[] {
 
 /** A goal is visible when neither it nor its page is in the bin. */
 export function isLiveGoal(s: AppState, g: Goal | undefined): g is Goal {
-  return !!g && !g.deletedAt && !!s.pages.find((p) => p.id === g.pageId && !p.deletedAt);
+  if (!g || g.deletedAt) return false;
+  if (g.parentId) return isLiveGoal(s, s.goals[g.parentId]);
+  return !!s.pages.find((p) => p.id === g.pageId && !p.deletedAt);
+}
+
+/** The goal's parents, outermost first. */
+export function ancestors(s: AppState, g: Goal): Goal[] {
+  const out: Goal[] = [];
+  for (let p = g.parentId ? s.goals[g.parentId] : undefined; p; p = p.parentId ? s.goals[p.parentId] : undefined) {
+    out.unshift(p);
+  }
+  return out;
 }
 
 /** Moves a page and its goals to the bin. */
@@ -185,7 +234,7 @@ export function movePage(id: string, beforeId: string | null) {
 export function pageGoals(s: AppState, pageId: string): Goal[] {
   const page = s.pages.find((p) => p.id === pageId);
   if (!page) return [];
-  const inPage = Object.values(s.goals).filter((g) => g.pageId === pageId && !g.deletedAt);
+  const inPage = Object.values(s.goals).filter((g) => g.pageId === pageId && !g.deletedAt && !g.parentId);
   const order = new Map(page.goalOrder.map((id, i) => [id, i]));
   return inPage.sort(
     (a, b) =>
@@ -194,9 +243,9 @@ export function pageGoals(s: AppState, pageId: string): Goal[] {
   );
 }
 
-export function addGoal(pageId: string, partial: Partial<Goal> = {}): string {
+function makeGoal(pageId: string, partial: Partial<Goal> = {}): Goal {
   const now = nowIso();
-  const goal: Goal = {
+  return {
     id: uid(),
     pageId,
     title: '',
@@ -212,14 +261,31 @@ export function addGoal(pageId: string, partial: Partial<Goal> = {}): string {
     blocks: [newBlock()],
     ...partial,
   };
+}
+
+export function addGoal(pageId: string, partial: Partial<Goal> = {}): string {
+  const goal = makeGoal(pageId, partial);
   set((s) => ({
     ...s,
     goals: { ...s.goals, [goal.id]: goal },
-    pages: s.pages.map((p) =>
-      p.id === pageId ? { ...p, goalOrder: [...p.goalOrder, goal.id], expanded: true } : p,
-    ),
+    pages: goal.parentId
+      ? s.pages
+      : s.pages.map((p) => (p.id === pageId ? { ...p, goalOrder: [...p.goalOrder, goal.id], expanded: true } : p)),
   }));
   return goal.id;
+}
+
+/** Adds a sub-goal to the gallery block `blockId` of goal `parentId`. */
+export function addSubGoal(parentId: string, blockId: string): string | null {
+  const parent = state.goals[parentId];
+  if (!parent) return null;
+  const id = addGoal(parent.pageId, { parentId });
+  updateGoal(parentId, (g) => ({
+    blocks: g.blocks.map((b) =>
+      b.id === blockId && b.gallery ? { ...b, gallery: { ...b.gallery, goalIds: [...b.gallery.goalIds, id] } } : b,
+    ),
+  }));
+  return id;
 }
 
 export function updateGoal(id: string, patch: Partial<Goal> | ((g: Goal) => Partial<Goal>)) {
@@ -247,7 +313,28 @@ export function deleteGoal(id: string) {
 export function restoreGoal(id: string): string | null {
   const g = state.goals[id];
   if (!g) return null;
-  const page = state.pages.find((p) => p.id === g.pageId);
+  if (g.parentId) {
+    const parent = state.goals[g.parentId];
+    if (parent && isLiveGoal(state, parent)) {
+      // Back into the parent's gallery; if that gallery was deleted, start a new one at the end.
+      if (!childIds(parent).includes(id)) {
+        const block = { ...newBlock('gallery'), gallery: { size: 'small' as const, goalIds: [id] } };
+        updateGoal(parent.id, (p) => ({ blocks: [...p.blocks, block] }));
+      }
+      set((s) => ({ ...s, goals: { ...s.goals, [id]: { ...s.goals[id], deletedAt: undefined } } }));
+      return g.pageId;
+    }
+    // The parent is gone: bring it back as an ordinary goal of its page.
+    set((s) => {
+      const goals = { ...s.goals, [id]: { ...s.goals[id], parentId: undefined } };
+      return {
+        ...s,
+        goals,
+        pages: s.pages.map((p) => (p.id === g.pageId ? { ...p, goalOrder: [...p.goalOrder, id] } : p)),
+      };
+    });
+  }
+  const page = state.pages.find((p) => p.id === state.goals[id].pageId);
   if (!page || page.deletedAt) {
     const target = livePages(state)[0];
     if (target) moveGoalToPage(id, target.id);
@@ -262,6 +349,8 @@ export function purgeGoal(id: string) {
   set((s) => {
     const goals = { ...s.goals };
     delete goals[id];
+    const kept = dropOrphans(goals);
+    for (const k of Object.keys(goals)) if (!(k in kept)) delete goals[k];
     return {
       ...s,
       goals,
@@ -273,8 +362,8 @@ export function purgeGoal(id: string) {
 export function emptyBin() {
   set((s) => {
     const goneP = new Set(s.pages.filter((p) => p.deletedAt).map((p) => p.id));
-    const goals = Object.fromEntries(
-      Object.entries(s.goals).filter(([, g]) => !g.deletedAt && !goneP.has(g.pageId)),
+    const goals = dropOrphans(
+      Object.fromEntries(Object.entries(s.goals).filter(([, g]) => !g.deletedAt && !goneP.has(g.pageId))),
     );
     return {
       ...s,
@@ -286,40 +375,96 @@ export function emptyBin() {
   });
 }
 
+/** Copies a goal, including its sub-goals, and places the copy right after the original. */
 export function duplicateGoal(id: string): string | null {
   const g = state.goals[id];
   if (!g) return null;
   const now = nowIso();
-  const copy: Goal = {
-    ...structuredClone(g),
-    id: uid(),
-    title: g.title ? `${g.title} (copy)` : '',
-    createdAt: now,
-    updatedAt: now,
+  const copies: Record<string, Goal> = {};
+  const copyTree = (src: Goal, parentId: string | undefined, rename: boolean): string => {
+    const copy: Goal = {
+      ...structuredClone(src),
+      id: uid(),
+      parentId,
+      title: rename && src.title ? `${src.title} (copy)` : src.title,
+      createdAt: now,
+      updatedAt: now,
+    };
+    copy.blocks = copy.blocks.map((b) => {
+      const nb = { ...b, id: uid() };
+      if (b.type === 'gallery' && b.gallery) {
+        const ids = b.gallery.goalIds
+          .map((cid) => state.goals[cid])
+          .filter((c): c is Goal => !!c && !c.deletedAt)
+          .map((c) => copyTree(c, copy.id, false));
+        nb.gallery = { ...b.gallery, goalIds: ids };
+      }
+      return nb;
+    });
+    copies[copy.id] = copy;
+    return copy.id;
   };
-  copy.blocks = copy.blocks.map((b) => ({ ...b, id: uid() }));
-  set((s) => ({
-    ...s,
-    goals: { ...s.goals, [copy.id]: copy },
-    pages: s.pages.map((p) => {
-      if (p.id !== g.pageId) return p;
-      const order = pageGoals(s, p.id).map((x) => x.id);
-      order.splice(order.indexOf(id) + 1, 0, copy.id);
-      return { ...p, goalOrder: order };
-    }),
-  }));
-  return copy.id;
+  const copyId = copyTree(g, g.parentId, true);
+
+  set((s) => {
+    const goals = { ...s.goals, ...copies };
+    if (g.parentId && goals[g.parentId]) {
+      const parent = goals[g.parentId];
+      goals[parent.id] = {
+        ...parent,
+        blocks: parent.blocks.map((b) => {
+          if (b.type !== 'gallery' || !b.gallery?.goalIds.includes(id)) return b;
+          const ids = [...b.gallery.goalIds];
+          ids.splice(ids.indexOf(id) + 1, 0, copyId);
+          return { ...b, gallery: { ...b.gallery, goalIds: ids } };
+        }),
+      };
+      return { ...s, goals };
+    }
+    return {
+      ...s,
+      goals,
+      pages: s.pages.map((p) => {
+        if (p.id !== g.pageId) return p;
+        const order = pageGoals(s, p.id).map((x) => x.id);
+        order.splice(order.indexOf(id) + 1, 0, copyId);
+        return { ...p, goalOrder: order };
+      }),
+    };
+  });
+  return copyId;
 }
 
+/** Moves a goal (and its sub-goals) to a page. A sub-goal becomes an ordinary goal of that page. */
 export function moveGoalToPage(id: string, pageId: string) {
   set((s) => {
     const g = s.goals[id];
-    if (!g || g.pageId === pageId) return s;
+    if (!g || (g.pageId === pageId && !g.parentId)) return s;
+    const goals = { ...s.goals };
+    const setPage = (gid: string) => {
+      const x = goals[gid];
+      if (!x) return;
+      goals[gid] = { ...x, pageId };
+      childIds(x).forEach(setPage);
+    };
+    setPage(id);
+    goals[id] = { ...goals[id], parentId: undefined };
+    if (g.parentId && goals[g.parentId]) {
+      const parent = goals[g.parentId];
+      goals[parent.id] = {
+        ...parent,
+        blocks: parent.blocks.map((b) =>
+          b.type === 'gallery' && b.gallery
+            ? { ...b, gallery: { ...b.gallery, goalIds: b.gallery.goalIds.filter((x) => x !== id) } }
+            : b,
+        ),
+      };
+    }
     return {
       ...s,
-      goals: { ...s.goals, [id]: { ...g, pageId } },
+      goals,
       pages: s.pages.map((p) => {
-        if (p.id === pageId) return { ...p, goalOrder: [...p.goalOrder, id] };
+        if (p.id === pageId) return { ...p, goalOrder: [...p.goalOrder.filter((x) => x !== id), id] };
         if (p.id === g.pageId) return { ...p, goalOrder: p.goalOrder.filter((x) => x !== id) };
         return p;
       }),

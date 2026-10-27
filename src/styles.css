@@ -1172,6 +1172,9 @@ button.crumb:hover {
   color: var(--fg);
   font-weight: 500;
 }
+.crumb-group {
+  display: contents;
+}
 .crumb-sep {
   color: var(--fg3);
 }
@@ -1923,129 +1926,63 @@ button.crumb:hover {
 }
 .gallery-block-grid {
   display: grid;
-  gap: 10px;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
 }
 .gallery-block.size-medium .gallery-block-grid {
-  gap: 12px;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+}
+.gallery-block .goal-card {
+  background: var(--card);
+}
+.gallery-block.size-small .card-cover {
+  height: 80px;
+}
+.gallery-block.size-small .card-body {
+  padding: 10px 12px 12px;
+  gap: 6px;
+}
+.gallery-block.size-small .card-title {
+  font-size: 0.92rem;
+}
+.gallery-block.size-small .card-props {
+  font-size: 0.72rem;
+}
+.gallery-block.size-small .card-props dt {
+  width: 44px;
+}
+.gallery-block.size-medium .card-cover {
+  height: 120px;
+}
+.gb-add {
+  min-height: 180px;
+  font-size: 0.86rem;
+}
+.danger-text {
+  color: var(--bad);
+}
+.danger-text:hover {
+  color: var(--bad);
 }
 @media (max-width: 760px) {
   .gallery-block-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
   }
   .gallery-block.size-medium .gallery-block-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
   }
-  .gallery-block:not(.size-medium) .gb-title {
-    font-size: 0.8rem;
-    padding: 8px 8px 0;
+  .gb-add {
+    min-height: 120px;
   }
-  .gallery-block:not(.size-medium) .gb-note {
-    font-size: 0.72rem;
-    padding: 0 8px 10px;
+  .gallery-block.size-small .card-pills .pill {
+    font-size: 0.68rem;
+    padding: 2px 7px;
   }
-}
-.gb-card {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  border-radius: var(--r-sm);
-  background: var(--card);
-  overflow: hidden;
-}
-.gb-cover {
-  position: relative;
-  display: grid;
-  place-items: center;
-  aspect-ratio: 4 / 3;
-  background: var(--chip);
-  color: var(--fg2);
-}
-.size-medium .gb-cover {
-  aspect-ratio: 16 / 10;
-}
-.gb-cover-hint {
-  position: absolute;
-  right: 8px;
-  bottom: 8px;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 9px;
-  border-radius: 999px;
-  background: var(--nav);
-  -webkit-backdrop-filter: blur(20px);
-  backdrop-filter: blur(20px);
-  color: var(--fg);
-  font-size: 0.7rem;
-  font-weight: 500;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-.gb-cover:hover .gb-cover-hint {
-  opacity: 1;
-}
-.gb-remove {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--nav);
-  -webkit-backdrop-filter: blur(20px);
-  backdrop-filter: blur(20px);
-  color: var(--fg);
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-.gb-card:hover .gb-remove,
-.gb-card:focus-within .gb-remove {
-  opacity: 1;
-}
-@media (hover: none) {
-  .gb-remove {
-    opacity: 0.85;
+  .gallery-block.size-small .card-props > div {
+    flex-wrap: wrap;
+    gap: 0 6px;
   }
-}
-.gb-title,
-.gb-note {
-  border: 0;
-  outline: 0;
-  background: transparent;
-  padding: 0 12px;
-  min-width: 0;
-}
-.gb-title {
-  padding-top: 10px;
-  font-size: 0.92rem;
-  font-weight: 600;
-}
-.gb-note {
-  padding-bottom: 12px;
-  font-size: 0.8rem;
-  color: var(--fg2);
-}
-.gb-add {
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 120px;
-  background: transparent;
-  border: 1.5px dashed var(--line);
-  color: var(--fg2);
-  font-size: 0.86rem;
-  font-weight: 500;
-}
-.size-medium .gb-add {
-  min-height: 160px;
-}
-.gb-add:hover {
-  color: var(--accent);
-  border-color: var(--accent);
 }
 
 /* ---------- board (gallery grouped by status / priority) ---------- */
@@ -2383,6 +2320,19 @@ button.crumb:hover {
     pointer-events: auto;
   }
   .block:focus-within > .block-content {
+    padding-right: 56px;
+  }
+  .block-gallery > .gutter,
+  .block-table > .gutter,
+  .block-image > .gutter,
+  .block-divider > .gutter {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .block-gallery > .block-content,
+  .block-table > .block-content,
+  .block-image > .block-content,
+  .block-divider > .block-content {
     padding-right: 56px;
   }
 }

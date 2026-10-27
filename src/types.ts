@@ -30,7 +30,8 @@ export interface TableData {
   header: boolean;
 }
 
-export interface GalleryItem {
+/** Cards in the first version of the gallery block; converted to sub-goals on load. */
+export interface LegacyGalleryItem {
   id: string;
   title: string;
   note: string;
@@ -39,7 +40,9 @@ export interface GalleryItem {
 
 export interface GalleryData {
   size: 'small' | 'medium';
-  items: GalleryItem[];
+  /** Sub-goals shown as cards, in order. */
+  goalIds: string[];
+  items?: LegacyGalleryItem[];
 }
 
 export interface Block {
@@ -73,6 +76,8 @@ export interface Goal {
   /** 'auto' derives progress from the checklist (to-do blocks) in the body */
   progressMode: 'manual' | 'auto';
   blocks: Block[];
+  /** Set for a sub-goal: the goal whose gallery shows it. */
+  parentId?: string;
   /** Set when the goal is in the bin. */
   deletedAt?: string;
 }
