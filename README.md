@@ -27,10 +27,10 @@ The `dist/` build is a static site, so any static host can serve it, including G
 
 ## Put it on your phone's home screen
 
-The repo includes a workflow (`.github/workflows/deploy.yml`) that publishes the app to GitHub Pages on every push to `main`.
+The workflow in `.github/workflows/gh-pages.yml` builds the app on every push to `main` and saves the result to the `gh-pages` branch.
 
-1. **Turn on Pages.** In the repository go to **Settings → Pages**, and under **Build and deployment → Source** choose **GitHub Actions**. GitHub Pages for a private repository needs a paid GitHub plan. On a free account, make the repository public first under **Settings → General → Danger Zone → Change visibility**.
-2. **Deploy.** Under **Actions**, open **Deploy to GitHub Pages** and click **Run workflow**, or push a commit. When it finishes, the site is at `https://<your-username>.github.io/Planner/`.
+1. **Turn on Pages.** In the repository go to **Settings → Pages**. Under **Build and deployment** set **Source** to **Deploy from a branch**, then pick **gh-pages** and **/ (root)** and click **Save**. GitHub Pages for a private repository needs a paid GitHub plan; on a free account, make the repository public first.
+2. **Wait a minute.** The site appears at `https://<your-username>.github.io/Planner/`. Each later push to `main` updates it automatically.
 3. **Install it.**
    - **iPhone or iPad:** open the link in Safari, tap **Share**, then **Add to Home Screen**.
    - **Android:** open the link in Chrome, tap **⋮**, then **Install app** (or **Add to Home screen**).
