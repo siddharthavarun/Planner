@@ -1,6 +1,6 @@
 // Lets the installed app open offline. Pages load network-first so new deploys show up;
 // built assets have hashed names, so they are served from the cache once fetched.
-const CACHE = 'goal-planner-v1';
+const CACHE = 'goal-planner-v2';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((c) => c.addAll(['./', './manifest.webmanifest'])));
