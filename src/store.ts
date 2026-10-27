@@ -75,7 +75,20 @@ export async function loadState(): Promise<void> {
   } catch {
     saveError = 'Browser storage is unavailable; changes will not be saved.';
   }
-  state = saved && saved.version === 1 ? withDefaults(saved) : seedState();
+  state = saved && saved.version === 1 ? purgeExpired(withDefaults(saved)) : seedState();
+}
+
+export const BIN_DAYS = 30;
+
+/** Permanently removes bin items older than BIN_DAYS. */
+function purgeExpired(s: AppState): AppState {
+  const cutoff = new Date(Date.now() - BIN_DAYS * 86_400_000).toISOString();
+  const old = (d?: string) => !!d && d < cutoff;
+  const goneP = new Set(s.pages.filter((p) => old(p.deletedAt)).map((p) => p.id));
+  const goals = Object.fromEntries(
+    Object.entries(s.goals).filter(([, g]) => !old(g.deletedAt) && !goneP.has(g.pageId)),
+  );
+  return { ...s, pages: s.pages.filter((p) => !goneP.has(p.id)), goals };
 }
 
 function withDefaults(s: AppState): AppState {
@@ -118,7 +131,26 @@ export function updatePage(id: string, patch: Partial<Page>) {
   set((s) => ({ ...s, pages: s.pages.map((p) => (p.id === id ? { ...p, ...patch } : p)) }));
 }
 
+export function livePages(s: AppState): Page[] {
+  return s.pages.filter((p) => !p.deletedAt);
+}
+
+/** A goal is visible when neither it nor its page is in the bin. */
+export function isLiveGoal(s: AppState, g: Goal | undefined): g is Goal {
+  return !!g && !g.deletedAt && !!s.pages.find((p) => p.id === g.pageId && !p.deletedAt);
+}
+
+/** Moves a page and its goals to the bin. */
 export function deletePage(id: string) {
+  updatePage(id, { deletedAt: nowIso() });
+}
+
+export function restorePage(id: string) {
+  set((s) => ({ ...s, pages: s.pages.map((p) => (p.id === id ? { ...p, deletedAt: undefined } : p)) }));
+}
+
+/** Deletes a binned page and everything in it for good. */
+export function purgePage(id: string) {
   set((s) => {
     const goals = { ...s.goals };
     for (const g of Object.values(goals)) if (g.pageId === id) delete goals[g.id];
@@ -142,7 +174,7 @@ export function movePage(id: string, beforeId: string | null) {
 export function pageGoals(s: AppState, pageId: string): Goal[] {
   const page = s.pages.find((p) => p.id === pageId);
   if (!page) return [];
-  const inPage = Object.values(s.goals).filter((g) => g.pageId === pageId);
+  const inPage = Object.values(s.goals).filter((g) => g.pageId === pageId && !g.deletedAt);
   const order = new Map(page.goalOrder.map((id, i) => [id, i]));
   return inPage.sort(
     (a, b) =>
@@ -188,7 +220,34 @@ export function updateGoal(id: string, patch: Partial<Goal> | ((g: Goal) => Part
   });
 }
 
+/** Moves a goal to the bin. It keeps its place in the page order for when it's restored. */
 export function deleteGoal(id: string) {
+  set((s) => {
+    const g = s.goals[id];
+    if (!g) return s;
+    return { ...s, goals: { ...s.goals, [id]: { ...g, deletedAt: nowIso() } } };
+  });
+}
+
+/**
+ * Brings a goal back. If its page is also in the bin, the goal goes to the first page
+ * that isn't, or its page is restored when there is no other page.
+ */
+export function restoreGoal(id: string): string | null {
+  const g = state.goals[id];
+  if (!g) return null;
+  const page = state.pages.find((p) => p.id === g.pageId);
+  if (!page || page.deletedAt) {
+    const target = livePages(state)[0];
+    if (target) moveGoalToPage(id, target.id);
+    else if (page) restorePage(page.id);
+  }
+  set((s) => ({ ...s, goals: { ...s.goals, [id]: { ...s.goals[id], deletedAt: undefined } } }));
+  return state.goals[id]?.pageId ?? null;
+}
+
+/** Deletes a binned goal for good. */
+export function purgeGoal(id: string) {
   set((s) => {
     const goals = { ...s.goals };
     delete goals[id];
@@ -196,6 +255,22 @@ export function deleteGoal(id: string) {
       ...s,
       goals,
       pages: s.pages.map((p) => ({ ...p, goalOrder: p.goalOrder.filter((g) => g !== id) })),
+    };
+  });
+}
+
+export function emptyBin() {
+  set((s) => {
+    const goneP = new Set(s.pages.filter((p) => p.deletedAt).map((p) => p.id));
+    const goals = Object.fromEntries(
+      Object.entries(s.goals).filter(([, g]) => !g.deletedAt && !goneP.has(g.pageId)),
+    );
+    return {
+      ...s,
+      pages: s.pages
+        .filter((p) => !goneP.has(p.id))
+        .map((p) => ({ ...p, goalOrder: p.goalOrder.filter((id) => id in goals) })),
+      goals,
     };
   });
 }

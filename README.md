@@ -11,6 +11,7 @@ A Notion-style app for planning yearly goals. It runs entirely in the browser.
   - Type `/` to open the block menu, or use the `+` and `⋮⋮` handles beside each block.
   - Markdown shortcuts: `#`, `##`, `###`, `-`, `1.`, `[]`, `>` (toggle), `"` (quote), and three backticks for code.
   - Drag blocks to reorder them. Use Tab and Shift+Tab to indent and outdent.
+- **Bin.** Deleted goals and pages go to the Bin at the bottom of the sidebar, with an Undo button right after you delete. You can restore them from the Bin or delete them for good. Anything left there is removed after 30 days.
 - Light and dark mode, and a layout that works on phones.
 - **Local storage with backups.** Everything is saved in your browser's IndexedDB. Use *Export backup* and *Import backup* to move your data to another browser or keep a copy.
 

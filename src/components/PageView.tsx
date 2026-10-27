@@ -5,11 +5,13 @@ import {
   duplicateGoal,
   pageGoals,
   reorderGoal,
+  restoreGoal,
   setPrefs,
   updatePage,
   useAppState,
 } from '../store';
 import { navigate } from '../route';
+import { showToast } from '../toast';
 import type { Goal, Page, SortKey, Status } from '../types';
 import { STATUSES } from '../types';
 import { PRIORITY_RANK, daysUntil, formatDate, goalProgress, isOverdue } from '../utils';
@@ -308,11 +310,15 @@ function GoalCard({ goal, draggable, dragging, dropSide, ...drag }: GoalCardProp
                 { label: 'Duplicate', icon: <CopyIcon />, onClick: () => duplicateGoal(goal.id) },
                 'sep',
                 {
-                  label: 'Delete',
+                  label: 'Move to bin',
                   icon: <TrashIcon />,
                   danger: true,
                   onClick: () => {
-                    if (confirm(`Delete "${goal.title || 'Untitled'}"?`)) deleteGoal(goal.id);
+                    deleteGoal(goal.id);
+                    showToast(`Moved “${goal.title || 'Untitled'}” to the bin`, {
+                      label: 'Undo',
+                      run: () => restoreGoal(goal.id),
+                    });
                   },
                 },
               ]}

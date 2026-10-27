@@ -59,6 +59,8 @@ export interface Goal {
   /** 'auto' derives progress from the checklist (to-do blocks) in the body */
   progressMode: 'manual' | 'auto';
   blocks: Block[];
+  /** Set when the goal is in the bin. */
+  deletedAt?: string;
 }
 
 export interface Page {
@@ -70,6 +72,8 @@ export interface Page {
   /** manual ordering of goals in the gallery */
   goalOrder: string[];
   expanded: boolean;
+  /** Set when the page (with its goals) is in the bin. */
+  deletedAt?: string;
 }
 
 export type SortKey = 'manual' | 'created' | 'target' | 'priority' | 'progress' | 'title';

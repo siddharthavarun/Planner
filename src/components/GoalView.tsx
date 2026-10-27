@@ -1,5 +1,14 @@
 import { useRef, useState } from 'react';
-import { deleteGoal, duplicateGoal, moveGoalToPage, updateGoal, useAppState } from '../store';
+import {
+  deleteGoal,
+  duplicateGoal,
+  livePages,
+  moveGoalToPage,
+  restoreGoal,
+  updateGoal,
+  useAppState,
+} from '../store';
+import { showToast } from '../toast';
 import { navigate } from '../route';
 import type { Goal } from '../types';
 import { checklistProgress, daysUntil, formatDateTime, goalProgress, isOverdue } from '../utils';
@@ -70,9 +79,15 @@ export function GoalView({ goal }: { goal: Goal }) {
   };
 
   const remove = () => {
-    if (!confirm(`Delete "${goal.title || 'Untitled'}"? This cannot be undone.`)) return;
     deleteGoal(goal.id);
     navigate(page ? { view: 'page', id: page.id } : { view: 'home' }, true);
+    showToast(`Moved “${goal.title || 'Untitled'}” to the bin`, {
+      label: 'Undo',
+      run: () => {
+        restoreGoal(goal.id);
+        navigate({ view: 'goal', id: goal.id });
+      },
+    });
   };
 
   return (
@@ -363,7 +378,7 @@ export function GoalView({ goal }: { goal: Goal }) {
                 onClick: () => movePop.open(menu.anchor!),
               },
               'sep',
-              { label: 'Delete', icon: <TrashIcon />, danger: true, onClick: remove },
+              { label: 'Move to bin', icon: <TrashIcon />, danger: true, onClick: remove },
             ]}
           />
         </Popover>
@@ -372,7 +387,7 @@ export function GoalView({ goal }: { goal: Goal }) {
         <Popover anchor={movePop.anchor} onClose={movePop.close} align="end">
           <div className="option-list">
             <div className="menu-heading">Move to page</div>
-            {state.pages.map((p) => (
+            {livePages(state).map((p) => (
               <button
                 key={p.id}
                 className={`option ${p.id === goal.pageId ? 'selected' : ''}`}

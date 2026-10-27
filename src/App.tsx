@@ -1,10 +1,12 @@
 import { useEffect } from 'react';
-import { addPage, setPrefs, useAppState } from './store';
+import { addPage, isLiveGoal, livePages, setPrefs, useAppState } from './store';
+import { dismissToast, useToast } from './toast';
 import { navigate, useRoute } from './route';
 import { Sidebar } from './components/Sidebar';
 import { PageView } from './components/PageView';
 import { GoalView } from './components/GoalView';
-import { SidebarIcon } from './components/Icons';
+import { BinView } from './components/BinView';
+import { CloseIcon, SidebarIcon } from './components/Icons';
 
 export function App() {
   const state = useAppState();
@@ -16,18 +18,22 @@ export function App() {
     else document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
+  const toast = useToast();
+
   // Land on the first page, and recover from links to things that were deleted.
-  const page = route.view === 'page' ? state.pages.find((p) => p.id === route.id) : undefined;
-  const goal = route.view === 'goal' ? state.goals[route.id] : undefined;
+  const pages = livePages(state);
+  const page = route.view === 'page' ? pages.find((p) => p.id === route.id) : undefined;
+  const goal = route.view === 'goal' && isLiveGoal(state, state.goals[route.id]) ? state.goals[route.id] : undefined;
   const missing = route.view === 'home' || (route.view === 'page' && !page) || (route.view === 'goal' && !goal);
+  const firstPageId = pages[0]?.id;
   useEffect(() => {
-    if (missing && state.pages[0]) navigate({ view: 'page', id: state.pages[0].id }, true);
-  }, [missing, state.pages]);
+    if (missing && firstPageId) navigate({ view: 'page', id: firstPageId }, true);
+  }, [missing, firstPageId]);
 
   useEffect(() => {
     const title = goal ? goal.title || 'Untitled' : page ? page.title || 'Untitled' : '';
-    document.title = title ? `${title} · Goal Planner` : 'Goal Planner';
-  }, [goal, page]);
+    document.title = route.view === 'bin' ? 'Bin · Goal Planner' : title ? `${title} · Goal Planner` : 'Goal Planner';
+  }, [goal, page, route.view]);
 
   // Close the sidebar after navigating on small screens, where it overlays the content.
   useEffect(() => {
@@ -39,17 +45,19 @@ export function App() {
     <div className={`app ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
       {sidebarOpen && <Sidebar />}
       {sidebarOpen && <div className="scrim" onClick={() => setPrefs({ sidebarOpen: false })} />}
-      <main className="main" key={route.view === 'home' ? 'home' : route.id}>
+      <main className="main" key={'id' in route ? route.id : route.view}>
         {!sidebarOpen && (
           <button className="icon-btn open-sidebar" title="Open sidebar" onClick={() => setPrefs({ sidebarOpen: true })}>
             <SidebarIcon />
           </button>
         )}
-        {goal ? (
+        {route.view === 'bin' ? (
+          <BinView />
+        ) : goal ? (
           <GoalView goal={goal} />
         ) : page ? (
           <PageView page={page} />
-        ) : state.pages.length === 0 ? (
+        ) : pages.length === 0 ? (
           <div className="empty-state">
             <div className="empty-emoji">🗓️</div>
             <h2>Plan your goals</h2>
@@ -63,6 +71,25 @@ export function App() {
           </div>
         ) : null}
       </main>
+      {toast && (
+        <div className="toast" role="status" key={toast.id}>
+          <span>{toast.message}</span>
+          {toast.action && (
+            <button
+              className="btn small"
+              onClick={() => {
+                toast.action!.run();
+                dismissToast();
+              }}
+            >
+              {toast.action.label}
+            </button>
+          )}
+          <button className="icon-btn small" onClick={dismissToast} aria-label="Dismiss">
+            <CloseIcon />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -3,6 +3,8 @@ import {
   addGoal,
   addPage,
   deletePage,
+  livePages,
+  restorePage,
   exportJson,
   importJson,
   movePage,
@@ -29,6 +31,8 @@ import {
 } from './Icons';
 import { Menu, Popover, usePopover } from './Popover';
 import { EmojiPicker } from './Pickers';
+import { binItems } from './BinView';
+import { showToast } from '../toast';
 
 export function Sidebar() {
   const state = useAppState();
@@ -39,6 +43,9 @@ export function Sidebar() {
   const [dropBefore, setDropBefore] = useState<string | null | undefined>(undefined);
   const fileInput = useRef<HTMLInputElement>(null);
 
+  const route = useRoute();
+  const pages = livePages(state);
+  const binCount = binItems(state).length;
   const q = query.trim().toLowerCase();
   const resolvedTheme =
     state.prefs.theme === 'system'
@@ -130,7 +137,7 @@ export function Sidebar() {
           setDropBefore(undefined);
         }}
       >
-        {state.pages.map((page) => {
+        {pages.map((page) => {
           const goals = pageGoals(state, page.id).filter(
             (g) => !q || (g.title || 'Untitled').toLowerCase().includes(q),
           );
@@ -153,14 +160,14 @@ export function Sidebar() {
               }}
               onDragOverItem={(before) => {
                 if (!dragId) return;
-                const idx = state.pages.findIndex((p) => p.id === page.id);
-                setDropBefore(before ? page.id : (state.pages[idx + 1]?.id ?? null));
+                const idx = pages.findIndex((p) => p.id === page.id);
+                setDropBefore(before ? page.id : (pages[idx + 1]?.id ?? null));
               }}
             />
           );
         })}
         {dropBefore === null && <div className="drop-line" />}
-        {state.pages.length === 0 && <p className="sidebar-empty">No pages yet.</p>}
+        {pages.length === 0 && <p className="sidebar-empty">No pages yet.</p>}
         <button className="sidebar-row add-row" onClick={createPage}>
           <PlusIcon /> Add a page
         </button>
@@ -168,6 +175,13 @@ export function Sidebar() {
 
       <div className="sidebar-foot">
         {saveError && <p className="error small">Not saved: {saveError}</p>}
+        <button
+          className={`sidebar-row ${route.view === 'bin' ? 'active' : ''}`}
+          onClick={() => navigate({ view: 'bin' })}
+        >
+          <TrashIcon /> Bin
+          {binCount > 0 && <span className="bin-count">{binCount}</span>}
+        </button>
         <button
           className="sidebar-row"
           onClick={() => setPrefs({ theme: resolvedTheme === 'dark' ? 'light' : 'dark' })}
@@ -219,15 +233,14 @@ function PageItem(props: PageItemProps) {
   const active = route.view === 'page' && route.id === page.id;
 
   const remove = () => {
-    const n = goals.length;
-    const msg = n
-      ? `Delete "${page.title || 'Untitled'}" and its ${n} goal${n === 1 ? '' : 's'}? This cannot be undone.`
-      : `Delete "${page.title || 'Untitled'}"?`;
-    if (!confirm(msg)) return;
     deletePage(page.id);
     if (active || (route.view === 'goal' && goals.some((g) => g.id === route.id))) {
       navigate({ view: 'home' });
     }
+    showToast(`Moved “${page.title || 'Untitled'}” to the bin`, {
+      label: 'Undo',
+      run: () => restorePage(page.id),
+    });
   };
 
   return (
@@ -347,7 +360,7 @@ function PageItem(props: PageItemProps) {
                 onClick: () => navigate({ view: 'goal', id: addGoal(page.id) }),
               },
               'sep',
-              { label: 'Delete', icon: <TrashIcon />, danger: true, onClick: remove },
+              { label: 'Move to bin', icon: <TrashIcon />, danger: true, onClick: remove },
             ]}
           />
         </Popover>
