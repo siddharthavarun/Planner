@@ -6,6 +6,7 @@ import { formatDate } from '../utils';
 import { AutoTextarea } from './AutoTextarea';
 import { CheckIcon, CloseIcon, DotsIcon, PlusIcon, TrashIcon } from './Icons';
 import { Popover, type Anchor } from './Popover';
+import { BlockHeader } from './BlockHeader';
 
 const TYPES: { type: ColumnType; label: string; glyph: string }[] = [
   { type: 'text', label: 'Text', glyph: 'Aa' },
@@ -32,13 +33,11 @@ export function TableBlock({
   table,
   onChange,
   onExit,
-  onDelete,
 }: {
   blockId: string;
   table: TableData;
   onChange: (t: TableData) => void;
   onExit: () => void;
-  onDelete: () => void;
 }) {
   const { rows } = table;
   const cols = Math.max(1, ...rows.map((r) => r.length));
@@ -205,16 +204,17 @@ export function TableBlock({
 
   return (
     <div className="table-block" ref={wrapRef} data-table={blockId}>
-      <div className="table-name-row">
-        <input
-          className="table-name"
-          value={name}
-          placeholder="Name this table (e.g. Budget) to use it in reports"
-          onChange={(e) => onChange({ ...table, name: e.target.value.replace(/[!']/g, '') })}
-          aria-label="Table name"
-        />
-        {name.trim() && wb.nameTaken(name, blockId) && <span className="table-name-warn">Name already used</span>}
-      </div>
+      <BlockHeader
+        title={name}
+        onTitle={(t) => onChange({ ...table, name: t.replace(/[!']/g, '') })}
+        placeholder="Table name (used in formulas, e.g. Budget)"
+        actions={name.trim() && wb.nameTaken(name, blockId) ? <span className="table-name-warn">Name in use</span> : null}
+        menu={[
+          { label: table.header ? 'Hide header row' : 'Show header row', onClick: () => onChange({ ...table, header: !table.header }) },
+          { label: 'Add a row', icon: <PlusIcon />, onClick: () => addRow() },
+          { label: 'Add a column', icon: <PlusIcon />, onClick: () => insertCol(cols) },
+        ]}
+      />
       <div className="table-scroll">
         <table>
           <thead>
@@ -289,14 +289,6 @@ export function TableBlock({
       <div className="table-foot">
         <button className="ghost-btn" onClick={() => addRow()} tabIndex={-1}>
           <PlusIcon /> New row
-        </button>
-        <label className="ghost-btn">
-          <input type="checkbox" checked={table.header} onChange={() => onChange({ ...table, header: !table.header })} />
-          Header row
-        </label>
-        <span className="spacer" />
-        <button className="ghost-btn danger-text" onClick={onDelete} tabIndex={-1}>
-          <TrashIcon /> Delete table
         </button>
       </div>
       {showRefs && (

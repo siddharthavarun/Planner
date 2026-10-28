@@ -14,6 +14,7 @@ import {
 import { colLetter } from '../formula';
 import { BarChart, DonutChart, LineChart, SERIES_COLORS, type Series } from './Charts';
 import { ArrowDownIcon, ArrowUpIcon, DotsIcon, PlusIcon, TrashIcon } from './Icons';
+import { BlockHeader } from './BlockHeader';
 import { Menu, Popover, usePopover, type Anchor } from './Popover';
 
 const KINDS: { kind: ReportKind; label: string; glyph: string; desc: string }[] = [
@@ -50,13 +51,15 @@ function newItem(kind: ReportKind, wb: Workbook): ReportItem {
 }
 
 export function ReportBlock({
+  title,
+  onTitle,
   report,
   onChange,
-  onDelete,
 }: {
+  title: string;
+  onTitle: (t: string) => void;
   report: ReportData;
   onChange: (r: ReportData) => void;
-  onDelete: () => void;
 }) {
   const wb = useWorkbook();
   const addMenu = usePopover();
@@ -77,18 +80,19 @@ export function ReportBlock({
 
   return (
     <div className="report-block">
-      <div className="report-bar">
-        <span className="report-label">Report</span>
-        <span className="report-live">● Live</span>
-        <span className="spacer" />
-        <button className="ghost-btn" onClick={(e) => addMenu.toggle(e.currentTarget)}>
-          <PlusIcon /> Add
-        </button>
-        <button className="ghost-btn danger-text" onClick={onDelete}>
-          <TrashIcon /> Delete report
-        </button>
-      </div>
-
+      <BlockHeader
+        title={title}
+        onTitle={onTitle}
+        placeholder="Report"
+        actions={
+          <>
+            <span className="report-live">● Live</span>
+            <button className="head-add" onClick={(e) => addMenu.toggle(e.currentTarget)}>
+              <PlusIcon /> Add
+            </button>
+          </>
+        }
+      />
       {items.length === 0 ? (
         <div className="report-empty">
           {wb.tables.length === 0

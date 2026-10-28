@@ -1930,6 +1930,79 @@ button.crumb:hover {
   padding-top: 8px;
 }
 
+/* ---------- heading bar of content blocks ---------- */
+
+.block-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  margin: 10px 0 6px;
+}
+.block-title {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  padding: 4px 2px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--fg);
+  text-overflow: ellipsis;
+}
+.block-title::placeholder {
+  color: var(--fg3);
+  font-weight: 500;
+}
+.block-title:focus::placeholder {
+  color: transparent;
+}
+.block-handles {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 2px;
+}
+.head-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  color: var(--fg2);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+.head-btn:hover {
+  background: var(--chip);
+  color: var(--fg);
+}
+.head-btn.grip {
+  cursor: grab;
+}
+.head-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--chip);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--accent);
+}
+.head-add:hover {
+  filter: brightness(1.05);
+}
+.report-live {
+  flex-shrink: 0;
+}
+.report-block .block-head {
+  margin-top: 0;
+}
+
 /* ---------- table columns, formulas and totals ---------- */
 
 .col-btn {
@@ -2947,22 +3020,9 @@ button.crumb:hover {
     opacity: 1;
     pointer-events: auto;
   }
-  .block:focus-within > .block-content {
-    padding-right: 56px;
-  }
-  .block-gallery > .gutter,
-  .block-report > .gutter,
-  .block-table > .gutter,
-  .block-image > .gutter,
-  .block-divider > .gutter {
-    opacity: 1;
-    pointer-events: auto;
-  }
-  .block-gallery > .block-content,
-  .block-report > .block-content,
-  .block-table > .block-content,
-  .block-image > .block-content,
-  .block-divider > .block-content {
+  /* Text blocks make room for their handles while being edited; content blocks keep theirs
+     in their heading and use the full width. */
+  .block:not(.block-table):not(.block-report):not(.block-gallery):not(.block-image):focus-within > .block-content {
     padding-right: 56px;
   }
 }

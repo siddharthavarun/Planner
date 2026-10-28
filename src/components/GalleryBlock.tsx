@@ -1,7 +1,8 @@
 import { addSubGoal, isLiveGoal, useAppState } from '../store';
 import { navigate } from '../route';
 import type { GalleryData } from '../types';
-import { PlusIcon, TrashIcon } from './Icons';
+import { CheckIcon, PlusIcon } from './Icons';
+import { BlockHeader } from './BlockHeader';
 import { GoalCard } from './PageView';
 
 /**
@@ -11,40 +12,32 @@ import { GoalCard } from './PageView';
 export function GalleryBlock({
   goalId,
   blockId,
+  title,
+  onTitle,
   gallery,
   onChange,
-  onDelete,
 }: {
   goalId: string;
   blockId: string;
+  title: string;
+  onTitle: (t: string) => void;
   gallery: GalleryData;
   onChange: (g: GalleryData) => void;
-  onDelete: () => void;
 }) {
   const state = useAppState();
   const goals = gallery.goalIds.map((id) => state.goals[id]).filter((g) => isLiveGoal(state, g));
 
   return (
     <div className={`gallery-block size-${gallery.size}`}>
-      <div className="gallery-block-bar">
-        <div className="seg" role="radiogroup" aria-label="Card size">
-          {(['small', 'medium'] as const).map((s) => (
-            <button
-              key={s}
-              role="radio"
-              aria-checked={gallery.size === s}
-              className={gallery.size === s ? 'on' : ''}
-              onClick={() => onChange({ ...gallery, size: s })}
-            >
-              {s === 'small' ? 'Small' : 'Medium'}
-            </button>
-          ))}
-        </div>
-        <span className="spacer" />
-        <button className="ghost-btn danger-text" onClick={onDelete}>
-          <TrashIcon /> Delete gallery
-        </button>
-      </div>
+      <BlockHeader
+        title={title}
+        onTitle={onTitle}
+        placeholder="Gallery"
+        menu={[
+          { label: 'Small cards', icon: gallery.size === 'small' ? <CheckIcon /> : undefined, onClick: () => onChange({ ...gallery, size: 'small' }) },
+          { label: 'Medium cards', icon: gallery.size === 'medium' ? <CheckIcon /> : undefined, onClick: () => onChange({ ...gallery, size: 'medium' }) },
+        ]}
+      />
       <div className="gallery-block-grid">
         {goals.map((g) => (
           <GoalCard

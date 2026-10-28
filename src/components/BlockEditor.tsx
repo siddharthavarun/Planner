@@ -22,7 +22,9 @@ import {
   TrashIcon,
   UploadIcon,
 } from './Icons';
-import { Menu, Popover, usePopover } from './Popover';
+import { Menu, Popover, usePopover, type MenuItem } from './Popover';
+import { BlockHandlesContext, BlockHeader } from './BlockHeader';
+import { showToast } from '../toast';
 import { EmojiPicker } from './Pickers';
 import { GalleryBlock } from './GalleryBlock';
 import { TableBlock } from './TableBlock';
@@ -56,6 +58,8 @@ export const BLOCK_KINDS: BlockKind[] = [
 ];
 
 const LIST_TYPES: BlockType[] = ['bulleted', 'numbered', 'todo'];
+/** Content blocks with a heading bar that holds their handles and settings. */
+const HEADED: BlockType[] = ['table', 'report', 'gallery', 'image'];
 const INDENTABLE: BlockType[] = ['paragraph', 'bulleted', 'numbered', 'todo'];
 const isTextual = (t: BlockType) =>
   t !== 'divider' && t !== 'table' && t !== 'image' && t !== 'gallery' && t !== 'report';
@@ -622,15 +626,15 @@ export function BlockEditor({ goalId, blocks, onChange, focusFirstRef, addTodoRe
             table={block.table ?? { header: true, rows: [['']] }}
             onChange={(table) => update(block.id, { table })}
             onExit={() => addBlockAfter(index, 'paragraph')}
-            onDelete={() => remove(block.id)}
           />
         );
       case 'report':
         return (
           <ReportBlock
+            title={block.text}
+            onTitle={(text) => update(block.id, { text })}
             report={block.report ?? { items: [] }}
             onChange={(report) => update(block.id, { report })}
-            onDelete={() => remove(block.id)}
           />
         );
       case 'gallery':
@@ -638,18 +642,27 @@ export function BlockEditor({ goalId, blocks, onChange, focusFirstRef, addTodoRe
           <GalleryBlock
             goalId={goalId}
             blockId={block.id}
+            title={block.text}
+            onTitle={(text) => update(block.id, { text })}
             gallery={block.gallery ?? { size: 'small', goalIds: [] }}
             onChange={(gallery) => update(block.id, { gallery })}
-            onDelete={() => remove(block.id)}
           />
         );
       case 'image':
         return (
-          <ImageBlock
-            image={block.image ?? { src: '', caption: '' }}
-            onChange={(image) => update(block.id, { image })}
-            onRemove={() => remove(block.id)}
-          />
+          <>
+            <BlockHeader
+              title={block.text}
+              onTitle={(text) => update(block.id, { text })}
+              placeholder="Image"
+              menu={
+                block.image?.src
+                  ? [{ label: 'Replace image', icon: <ImageIcon />, onClick: () => update(block.id, { image: { ...block.image!, src: '' } }) }]
+                  : []
+              }
+            />
+            <ImageBlock image={block.image ?? { src: '', caption: '' }} onChange={(image) => update(block.id, { image })} />
+          </>
         );
     }
   };
@@ -703,7 +716,12 @@ export function BlockEditor({ goalId, blocks, onChange, focusFirstRef, addTodoRe
             if (target) moveBlock(block.id, target.id, dir === -1);
           }}
           onDelete={() => {
+            const before = blocksRef.current;
             remove(block.id);
+            if (block.type === 'table' || block.type === 'report' || block.type === 'image') {
+              const name = { table: 'table', report: 'report', image: 'image' }[block.type];
+              showToast(`Deleted ${name}`, { label: 'Undo', run: () => commit(before) });
+            }
             const t = textualNeighbor(index, -1) ?? textualNeighbor(index - 1, 1);
             if (t) focusBlock(t.id, 'end');
           }}
@@ -758,6 +776,25 @@ function BlockRow(props: BlockRowProps) {
   const menu = usePopover();
   const [armed, setArmed] = useState(false);
   const indent = block.indent ?? 0;
+  const headed = HEADED.includes(block.type);
+  const extraRef = useRef<(MenuItem | 'sep')[]>([]);
+
+  const addBtn = (className: string) => (
+    <button className={className} title="Add a block below" onClick={props.onAdd} tabIndex={-1}>
+      <PlusIcon />
+    </button>
+  );
+  const gripBtn = (className: string) => (
+    <button
+      className={className}
+      title="Drag to move · Click for options"
+      onMouseDown={() => setArmed(true)}
+      onClick={(e) => menu.toggle(e.currentTarget)}
+      tabIndex={-1}
+    >
+      <GripIcon />
+    </button>
+  );
 
   useEffect(() => {
     if (!armed) return;
@@ -788,25 +825,41 @@ function BlockRow(props: BlockRowProps) {
         props.onDragOverRow(e.clientY < r.top + r.height / 2);
       }}
     >
-      <div className="gutter" style={indent ? { left: indent * 24 - 48 } : undefined}>
-        <button className="gutter-btn" title="Add a block below" onClick={props.onAdd} tabIndex={-1}>
-          <PlusIcon />
-        </button>
-        <button
-          className="gutter-btn grip"
-          title="Drag to move · Click for options"
-          onMouseDown={() => setArmed(true)}
-          onClick={(e) => menu.toggle(e.currentTarget)}
-          tabIndex={-1}
-        >
-          <GripIcon />
-        </button>
+      {!headed && (
+        <div className="gutter" style={indent ? { left: indent * 24 - 48 } : undefined}>
+          {addBtn('gutter-btn')}
+          {gripBtn('gutter-btn grip')}
+        </div>
+      )}
+      <div className="block-content">
+        {headed ? (
+          <BlockHandlesContext.Provider
+            value={(extra) => {
+              extraRef.current = extra;
+              return (
+                <span className="block-handles">
+                  {addBtn('head-btn')}
+                  {gripBtn('head-btn grip')}
+                </span>
+              );
+            }}
+          >
+            {props.children}
+          </BlockHandlesContext.Provider>
+        ) : (
+          props.children
+        )}
       </div>
-      <div className="block-content">{props.children}</div>
 
       {menu.anchor && (
-        <Popover anchor={menu.anchor} onClose={menu.close}>
+        <Popover anchor={menu.anchor} onClose={menu.close} align={headed ? 'end' : 'start'}>
           <div className="block-menu">
+            {headed && extraRef.current.length > 0 && (
+              <>
+                <Menu onClose={menu.close} items={extraRef.current} />
+                <div className="menu-sep" />
+              </>
+            )}
             <Menu
               onClose={menu.close}
               items={[
@@ -820,23 +873,27 @@ function BlockRow(props: BlockRowProps) {
                 { label: 'Delete', icon: <TrashIcon />, danger: true, onClick: props.onDelete },
               ]}
             />
-            <div className="menu-sep" />
-            <div className="menu-heading">Turn into</div>
-            <div className="menu turn-into">
-              {props.kinds.map((kind) => (
-                <button
-                  key={kind.type}
-                  className="menu-item"
-                  onClick={() => {
-                    menu.close();
-                    props.onTurnInto(kind.type);
-                  }}
-                >
-                  <span className="kind-glyph small">{kind.glyph}</span>
-                  <span className="menu-label">{kind.label}</span>
-                </button>
-              ))}
-            </div>
+            {!headed && (
+              <>
+                <div className="menu-sep" />
+                <div className="menu-heading">Turn into</div>
+                <div className="menu turn-into">
+                  {props.kinds.map((kind) => (
+                    <button
+                      key={kind.type}
+                      className="menu-item"
+                      onClick={() => {
+                        menu.close();
+                        props.onTurnInto(kind.type);
+                      }}
+                    >
+                      <span className="kind-glyph small">{kind.glyph}</span>
+                      <span className="menu-label">{kind.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </Popover>
       )}
@@ -955,11 +1012,9 @@ function CalloutBlock({
 function ImageBlock({
   image,
   onChange,
-  onRemove,
 }: {
   image: { src: string; caption: string };
   onChange: (img: { src: string; caption: string }) => void;
-  onRemove: () => void;
 }) {
   const [url, setUrl] = useState('');
   const [busy, setBusy] = useState(false);
@@ -1021,14 +1076,6 @@ function ImageBlock({
   return (
     <figure className="image-block">
       <img src={image.src} alt={image.caption} />
-      <div className="image-tools">
-        <button className="btn small" onClick={() => onChange({ ...image, src: '' })}>
-          Replace
-        </button>
-        <button className="btn small" onClick={onRemove}>
-          <TrashIcon />
-        </button>
-      </div>
       <input
         className="caption"
         placeholder="Add a caption…"
