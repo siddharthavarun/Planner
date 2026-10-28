@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
 import type { CalcKind, ColumnSpec, ColumnType, TableData } from '../types';
-import { colLetter, evaluate, parseNumber } from '../formula';
+import { colLetter } from '../formula';
+import { defaultCurrency, formatValue as format, isNumeric, useWorkbook } from '../workbook';
 import { formatDate } from '../utils';
 import { AutoTextarea } from './AutoTextarea';
 import { CheckIcon, CloseIcon, DotsIcon, PlusIcon, TrashIcon } from './Icons';
@@ -26,29 +27,6 @@ const CALCS: { calc: CalcKind; label: string }[] = [
 
 const CURRENCIES = ['USD', 'EUR', 'GBP', 'INR', 'JPY', 'AUD', 'CAD', 'CHF'];
 
-/** A sensible default currency for the viewer's region. */
-function defaultCurrency(): string {
-  const region = (navigator.language.split('-')[1] ?? '').toUpperCase();
-  const map: Record<string, string> = { US: 'USD', GB: 'GBP', IN: 'INR', JP: 'JPY', AU: 'AUD', CA: 'CAD', CH: 'CHF' };
-  const euro = ['DE', 'FR', 'ES', 'IT', 'NL', 'BE', 'AT', 'IE', 'PT', 'FI', 'GR', 'LU', 'SK', 'SI', 'EE', 'LV', 'LT', 'HR', 'MT', 'CY'];
-  return map[region] ?? (euro.includes(region) ? 'EUR' : 'USD');
-}
-
-const isNumeric = (t: ColumnType) => t === 'number' || t === 'currency' || t === 'percent';
-
-function format(value: number, spec: ColumnSpec): string {
-  switch (spec.type) {
-    case 'currency':
-      return new Intl.NumberFormat(undefined, { style: 'currency', currency: spec.currency ?? 'USD' }).format(value);
-    case 'percent':
-      return new Intl.NumberFormat(undefined, { style: 'percent', maximumFractionDigits: 2 }).format(value);
-    default:
-      return new Intl.NumberFormat(undefined, { maximumFractionDigits: 6 }).format(value);
-  }
-}
-
-type Result = { ok: true; value: number | null } | { ok: false; error: string };
-
 export function TableBlock({
   blockId,
   table,
@@ -67,6 +45,7 @@ export function TableBlock({
   const specs: ColumnSpec[] = Array.from({ length: cols }, (_, c) => table.columns?.[c] ?? { type: 'text' });
   const first = table.header ? 1 : 0;
   const dataRows = rows.slice(first);
+  const name = table.name ?? '';
   const wrapRef = useRef<HTMLDivElement>(null);
   const pendingCell = useRef<string | null>(null);
   const [focused, setFocused] = useState<string | null>(null);
@@ -80,68 +59,17 @@ export function TableBlock({
 
   // ---------- values & formulas ----------
 
+  // The shared workbook computes cells, so formulas here can also reach other tables by name.
   // References count data rows only: with a header row, A1 is the first row under it.
-  const results = new Map<string, Result>();
-  const compute = (c: number, r: number, stack: Set<string>): Result => {
-    const key = `${c}:${r}`;
-    const cached = results.get(key);
-    if (cached) return cached;
-    if (stack.has(key)) return { ok: false, error: 'Refers to itself' };
-    const raw = (dataRows[r]?.[c] ?? '').trim();
-    const spec = specs[c] ?? { type: 'text' };
-    let res: Result;
-    if (raw.startsWith('=')) {
-      stack.add(key);
-      try {
-        const v = evaluate(
-          raw.slice(1),
-          (cc, rr) => {
-            if (cc < 0 || cc >= cols || rr < 0 || rr >= dataRows.length) throw new Error('No such cell');
-            const inner = compute(cc, rr, stack);
-            if (!inner.ok) throw new Error(inner.error);
-            return inner.value ?? 0;
-          },
-          dataRows.length,
-        );
-        res = { ok: true, value: v };
-      } catch (err) {
-        res = { ok: false, error: err instanceof Error ? err.message : 'Error' };
-      }
-      stack.delete(key);
-    } else if (spec.type === 'checkbox') {
-      res = { ok: true, value: raw === '1' ? 1 : 0 };
-    } else if (spec.type === 'percent') {
-      const n = parseNumber(raw.replace(/%$/, ''));
-      res = { ok: true, value: n === null ? null : n / 100 };
-    } else {
-      res = { ok: true, value: parseNumber(raw) };
-    }
-    results.set(key, res);
-    return res;
-  };
-  const valueAt = (c: number, r: number) => compute(c, r, new Set());
+  const wb = useWorkbook({ id: blockId, data: table });
+  const valueAt = (c: number, r: number) => wb.cell(blockId, c, r);
 
   const calcFor = (c: number): string | null => {
     const kind = specs[c].calc ?? 'none';
     if (kind === 'none') return null;
-    if (kind === 'count') {
-      const n = dataRows.filter((row) => (row[c] ?? '').trim() !== '' && (specs[c].type !== 'checkbox' || row[c] === '1')).length;
-      return String(n);
-    }
-    const nums = dataRows
-      .map((_, r) => valueAt(c, r))
-      .filter((x): x is { ok: true; value: number } => x.ok && x.value !== null)
-      .map((x) => x.value);
-    if (nums.length === 0) return '—';
-    const v =
-      kind === 'sum'
-        ? nums.reduce((a, b) => a + b, 0)
-        : kind === 'avg'
-          ? nums.reduce((a, b) => a + b, 0) / nums.length
-          : kind === 'min'
-            ? Math.min(...nums)
-            : Math.max(...nums);
-    return format(v, specs[c].type === 'text' || specs[c].type === 'date' || specs[c].type === 'checkbox' ? { type: 'number' } : specs[c]);
+    const v = wb.calc(blockId, c, kind);
+    if (v === null) return '—';
+    return kind === 'count' ? String(v) : format(v, wb.specOf(blockId, c));
   };
 
   // ---------- edits ----------
@@ -251,7 +179,17 @@ export function TableBlock({
         title={error ?? undefined}
         value={shown}
         placeholder={!isHeader && isNumeric(spec.type) && focused === field ? '0 or =formula' : undefined}
-        onFocus={() => setFocused(field)}
+        onFocus={(e) => {
+          setFocused(field);
+          // The cell swaps its formatted value for the raw one on focus; select it all so typing
+          // replaces the number instead of appending to a selection that no longer exists.
+          if (numericLike) {
+            const el = e.currentTarget;
+            requestAnimationFrame(() => {
+              if (document.activeElement === el) el.select();
+            });
+          }
+        }}
         onBlur={() => setFocused((f) => (f === field ? null : f))}
         onChange={(e) => setCell(r, c, e.target.value)}
         onKeyDown={(e) => onCellKey(e, r, c)}
@@ -264,6 +202,16 @@ export function TableBlock({
 
   return (
     <div className="table-block" ref={wrapRef} data-table={blockId}>
+      <div className="table-name-row">
+        <input
+          className="table-name"
+          value={name}
+          placeholder="Name this table (e.g. Budget) to use it in reports"
+          onChange={(e) => onChange({ ...table, name: e.target.value.replace(/[!']/g, '') })}
+          aria-label="Table name"
+        />
+        {name.trim() && wb.nameTaken(name, blockId) && <span className="table-name-warn">Name already used</span>}
+      </div>
       <div className="table-scroll">
         <table>
           <thead>
@@ -350,7 +298,8 @@ export function TableBlock({
       </div>
       {showRefs && (
         <p className="table-hint">
-          Type <code>=</code> for a formula, e.g. <code>=B1*12</code>, <code>=SUM(B)</code> or <code>=AVG(B1:B4)</code>.
+          Type <code>=</code> for a formula, e.g. <code>=B1*12</code>, <code>=SUM(B)</code> or <code>=AVG(B1:B4)</code>. Use
+          another table by name: <code>=Savings!B2</code>.
         </p>
       )}
 

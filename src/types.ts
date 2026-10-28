@@ -23,7 +23,8 @@ export type BlockType =
   | 'divider'
   | 'table'
   | 'image'
-  | 'gallery';
+  | 'gallery'
+  | 'report';
 
 export type ColumnType = 'text' | 'number' | 'currency' | 'percent' | 'date' | 'checkbox';
 export type CalcKind = 'none' | 'sum' | 'avg' | 'min' | 'max' | 'count';
@@ -37,10 +38,40 @@ export interface ColumnSpec {
 }
 
 export interface TableData {
+  /** Optional name; formulas and reports elsewhere refer to the table by it (Budget!B2). */
+  name?: string;
   rows: string[][];
   header: boolean;
   /** Per-column settings; missing entries are plain text. */
   columns?: ColumnSpec[];
+}
+
+export type ReportKind = 'number' | 'bar' | 'line' | 'donut';
+
+/** One tile or chart in a report. It reads live from a table, or from a formula. */
+export interface ReportItem {
+  id: string;
+  kind: ReportKind;
+  title: string;
+  /** Source table (block id). */
+  tableId?: string;
+  /** Charts: column with the row labels; -1 means "Row 1, Row 2…". */
+  labelCol?: number;
+  /** Number tile: the column to summarise. Charts: the plotted columns (up to 3; donut uses 1). */
+  valueCols: number[];
+  /** Number tile: how to summarise the column. */
+  calc?: CalcKind;
+  /** Number tile: use a formula instead of a column (can reach any named table). */
+  formula?: string;
+  /** Number tile: how a formula's result is shown. */
+  format?: 'number' | 'currency' | 'percent';
+  currency?: string;
+  /** Number tile: optional target (number or formula) shown as a progress meter. */
+  target?: string;
+}
+
+export interface ReportData {
+  items: ReportItem[];
 }
 
 /** Cards in the first version of the gallery block; converted to sub-goals on load. */
@@ -72,6 +103,7 @@ export interface Block {
   table?: TableData;
   image?: { src: string; caption: string };
   gallery?: GalleryData;
+  report?: ReportData;
 }
 
 export interface Goal {

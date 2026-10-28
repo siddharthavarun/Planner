@@ -11,6 +11,7 @@ A Notion-style app for planning yearly goals. It runs entirely in the browser.
   - Type `/` to open the block menu, or use the `+` and `⋮⋮` handles beside each block.
   - Markdown shortcuts: `#`, `##`, `###`, `-`, `1.`, `[]`, `>` (toggle), `"` (quote), and three backticks for code.
   - Drag blocks to reorder them. Use Tab and Shift+Tab to indent and outdent.
+- **Live reports.** Type `/report` on any goal to add number tiles, bar charts, line charts and donut charts that read straight from your tables and update as the numbers change. A report can sit next to its table or on its own page (any goal or gallery card), and draw from tables anywhere in the planner. Name a table (e.g. *Budget*) to use it in formulas elsewhere: `=Budget!B2`, `=SUM(Budget!B) - SUM(Spent!B)`.
 - **Bin.** Deleted goals and pages go to the Bin at the bottom of the sidebar, with an Undo button right after you delete. You can restore them from the Bin or delete them for good. Anything left there is removed after 30 days.
 - Light and dark mode, and a layout that works on phones.
 - **Local storage with backups.** Everything is saved in your browser's IndexedDB. Use *Export backup* and *Import backup* to move your data to another browser or keep a copy.

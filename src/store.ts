@@ -157,6 +157,7 @@ export function newBlock(type: BlockType = 'paragraph', text = ''): Block {
   if (type === 'table') b.table = { header: true, rows: [['', '', ''], ['', '', ''], ['', '', '']] };
   if (type === 'image') b.image = { src: '', caption: '' };
   if (type === 'gallery') b.gallery = { size: 'small', goalIds: [] };
+  if (type === 'report') b.report = { items: [] };
   return b;
 }
 

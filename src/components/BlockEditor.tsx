@@ -26,6 +26,7 @@ import { Menu, Popover, usePopover } from './Popover';
 import { EmojiPicker } from './Pickers';
 import { GalleryBlock } from './GalleryBlock';
 import { TableBlock } from './TableBlock';
+import { ReportBlock } from './ReportBlock';
 
 interface BlockKind {
   type: BlockType;
@@ -47,6 +48,7 @@ export const BLOCK_KINDS: BlockKind[] = [
   { type: 'table', label: 'Table', desc: 'Rows and columns', glyph: '▦', keywords: 'table grid rows columns spreadsheet' },
   { type: 'callout', label: 'Callout', desc: 'Make text stand out', glyph: '💡', keywords: 'callout note highlight info' },
   { type: 'quote', label: 'Quote', desc: 'Capture a quote', glyph: '❝', keywords: 'quote citation blockquote' },
+  { type: 'report', label: 'Report', desc: 'Live numbers and charts from tables', glyph: '◔', keywords: 'report chart dashboard graph bar line donut pie number kpi summary' },
   { type: 'gallery', label: 'Gallery', desc: 'Picture cards in a grid', glyph: '▤', keywords: 'gallery cards grid board vision pictures photos' },
   { type: 'image', label: 'Image', desc: 'Upload or embed an image', glyph: '🖼', keywords: 'image picture photo upload' },
   { type: 'code', label: 'Code', desc: 'Monospaced snippet', glyph: '</>', keywords: 'code snippet monospace' },
@@ -55,7 +57,8 @@ export const BLOCK_KINDS: BlockKind[] = [
 
 const LIST_TYPES: BlockType[] = ['bulleted', 'numbered', 'todo'];
 const INDENTABLE: BlockType[] = ['paragraph', 'bulleted', 'numbered', 'todo'];
-const isTextual = (t: BlockType) => t !== 'divider' && t !== 'table' && t !== 'image' && t !== 'gallery';
+const isTextual = (t: BlockType) =>
+  t !== 'divider' && t !== 'table' && t !== 'image' && t !== 'gallery' && t !== 'report';
 
 const MARKDOWN: [string, BlockType][] = [
   ['# ', 'h1'],
@@ -619,6 +622,14 @@ export function BlockEditor({ goalId, blocks, onChange, focusFirstRef, addTodoRe
             table={block.table ?? { header: true, rows: [['']] }}
             onChange={(table) => update(block.id, { table })}
             onExit={() => addBlockAfter(index, 'paragraph')}
+            onDelete={() => remove(block.id)}
+          />
+        );
+      case 'report':
+        return (
+          <ReportBlock
+            report={block.report ?? { items: [] }}
+            onChange={(report) => update(block.id, { report })}
             onDelete={() => remove(block.id)}
           />
         );

@@ -1,8 +1,14 @@
-// A small spreadsheet-style evaluator for table cells. Supports + - * / % ^, parentheses,
-// numbers, cell references (B2), ranges (B1:B4), whole columns (B) and a few functions.
+// A small spreadsheet-style evaluator for table cells and reports. Supports + - * / % ^,
+// parentheses, numbers, cell references (B2), ranges (B1:B4), whole columns (B), references
+// into other tables by name (Budget!B2, 'Monthly budget'!B) and a few functions.
 // It parses the text itself; nothing is ever passed to eval().
 
-export type CellGetter = (col: number, row: number) => number;
+export interface Sheets {
+  /** Value of a cell; `sheet` is a table name, or undefined for the current table. */
+  get: (col: number, row: number, sheet?: string) => number;
+  /** Number of data rows, for whole-column references. */
+  rowCount: (sheet?: string) => number;
+}
 
 const FUNCS: Record<string, (args: number[]) => number> = {
   SUM: (a) => a.reduce((x, y) => x + y, 0),
@@ -20,7 +26,7 @@ const FUNCS: Record<string, (args: number[]) => number> = {
 
 type Tok =
   | { t: 'num'; v: number }
-  | { t: 'ref'; col: number; row: number | null }
+  | { t: 'ref'; col: number; row: number | null; sheet?: string }
   | { t: 'fn'; name: string }
   | { t: 'op'; v: string };
 
@@ -36,6 +42,23 @@ function tokenize(src: string): Tok[] {
     } else if (/[0-9.]/.test(ch)) {
       const m = /^[0-9]*\.?[0-9]+(e[+-]?[0-9]+)?|^[0-9]+\.?/i.exec(src.slice(i))!;
       out.push({ t: 'num', v: parseFloat(m[0]) });
+      i += m[0].length;
+    } else if (ch === "'" || /^[a-z_][a-z0-9_]*!/i.test(src.slice(i))) {
+      // Table name before "!": Budget!B2 or 'Monthly budget'!B2
+      let sheet: string;
+      if (ch === "'") {
+        const end = src.indexOf("'", i + 1);
+        if (end < 0 || src[end + 1] !== '!') throw new Error("Use 'Table name'!B1");
+        sheet = src.slice(i + 1, end);
+        i = end + 2;
+      } else {
+        const m = /^([a-z_][a-z0-9_]*)!/i.exec(src.slice(i))!;
+        sheet = m[1];
+        i += m[0].length;
+      }
+      const m = /^([a-z])([0-9]*)/i.exec(src.slice(i));
+      if (!m) throw new Error(`Expected a cell after ${sheet}!`);
+      out.push({ t: 'ref', sheet, col: m[1].toUpperCase().charCodeAt(0) - 65, row: m[2] ? parseInt(m[2], 10) - 1 : null });
       i += m[0].length;
     } else if (/[a-z]/i.test(ch)) {
       const m = /^([a-z]+)([0-9]*)/i.exec(src.slice(i))!;
@@ -59,7 +82,7 @@ function tokenize(src: string): Tok[] {
 }
 
 /** Evaluates a formula (without the leading "="). */
-export function evaluate(src: string, get: CellGetter, rowCount: number): number {
+export function evaluate(src: string, sheets: Sheets): number {
   const toks = tokenize(src);
   let pos = 0;
   const peek = () => toks[pos];
@@ -69,14 +92,18 @@ export function evaluate(src: string, get: CellGetter, rowCount: number): number
     pos++;
   };
 
-  const rangeValues = (a: { col: number; row: number | null }, b?: { col: number; row: number | null }): number[] => {
+  type Ref = { col: number; row: number | null; sheet?: string };
+  const rangeValues = (a: Ref, b?: Ref): number[] => {
+    const sheet = a.sheet;
+    if (b && (b.sheet ?? sheet) !== sheet) throw new Error('A range must stay in one table');
+    const last = sheets.rowCount(sheet) - 1;
     const r1 = a.row ?? 0;
-    const r2 = b ? (b.row ?? rowCount - 1) : a.row ?? rowCount - 1;
+    const r2 = b ? (b.row ?? last) : (a.row ?? last);
     const c1 = a.col;
     const c2 = b ? b.col : a.col;
     const vals: number[] = [];
     for (let c = Math.min(c1, c2); c <= Math.max(c1, c2); c++)
-      for (let r = Math.min(r1, r2); r <= Math.max(r1, r2); r++) vals.push(get(c, r));
+      for (let r = Math.min(r1, r2); r <= Math.max(r1, r2); r++) vals.push(sheets.get(c, r, sheet));
     return vals;
   };
 
@@ -111,7 +138,7 @@ export function evaluate(src: string, get: CellGetter, rowCount: number): number
     if (t.t === 'ref') {
       pos++;
       if (t.row === null) throw new Error(`Use ${colLetter(t.col)} inside SUM(), or a cell like ${colLetter(t.col)}1`);
-      return get(t.col, t.row);
+      return sheets.get(t.col, t.row, t.sheet);
     }
     if (t.t === 'fn') {
       pos++;
