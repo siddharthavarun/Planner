@@ -118,7 +118,7 @@ export class Workbook {
         }
         const r = this.cell(t.id, col, row, stack);
         if (!r.ok) throw new Error(r.error);
-        return r.value ?? 0;
+        return r.value;
       },
       rowCount: (sheet?: string) => dataRows(resolve(sheet).data).length,
     };

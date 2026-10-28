@@ -4,6 +4,7 @@ import {
   addPage,
   deletePage,
   livePages,
+  mergeJson,
   restorePage,
   exportJson,
   importJson,
@@ -42,6 +43,7 @@ export function Sidebar() {
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropBefore, setDropBefore] = useState<string | null | undefined>(undefined);
   const fileInput = useRef<HTMLInputElement>(null);
+  const mergeInput = useRef<HTMLInputElement>(null);
 
   const route = useRoute();
   const pages = livePages(state);
@@ -69,12 +71,19 @@ export function Sidebar() {
     URL.revokeObjectURL(a.href);
   };
 
-  const upload = async (file: File | undefined) => {
+  const upload = async (file: File | undefined, mode: 'merge' | 'replace') => {
     if (!file) return;
-    if (!confirm('Importing replaces everything currently in the planner. Continue?')) return;
+    if (mode === 'replace' && !confirm('Restoring a backup replaces everything currently in the planner. Continue?')) return;
     try {
-      importJson(await file.text());
-      navigate({ view: 'home' });
+      const text = await file.text();
+      if (mode === 'replace') {
+        importJson(text);
+        navigate({ view: 'home' });
+        return;
+      }
+      const { goals, firstGoalId } = mergeJson(text);
+      showToast(`Added ${goals} goal${goals === 1 ? '' : 's'} from ${file.name}`);
+      if (firstGoalId) navigate({ view: 'goal', id: firstGoalId });
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Import failed.');
     }
@@ -192,16 +201,29 @@ export function Sidebar() {
         <button className="sidebar-row" onClick={download}>
           <DownloadIcon /> Export backup
         </button>
-        <button className="sidebar-row" onClick={() => fileInput.current?.click()}>
-          <UploadIcon /> Import backup
+        <button className="sidebar-row" onClick={() => mergeInput.current?.click()}>
+          <PlusIcon /> Add from file
         </button>
+        <button className="sidebar-row" onClick={() => fileInput.current?.click()}>
+          <UploadIcon /> Restore backup
+        </button>
+        <input
+          ref={mergeInput}
+          type="file"
+          accept="application/json,.json"
+          hidden
+          onChange={(e) => {
+            void upload(e.target.files?.[0], 'merge');
+            e.target.value = '';
+          }}
+        />
         <input
           ref={fileInput}
           type="file"
           accept="application/json,.json"
           hidden
           onChange={(e) => {
-            void upload(e.target.files?.[0]);
+            void upload(e.target.files?.[0], 'replace');
             e.target.value = '';
           }}
         />

@@ -508,6 +508,78 @@ export function importJson(text: string) {
   set(() => withDefaults(data));
 }
 
+/**
+ * Adds the pages and goals in a planner file to the current planner instead of replacing it.
+ * Everything gets fresh ids (and links inside the file follow), so nothing existing is
+ * overwritten. Goals for a page whose name already exists go into that page.
+ */
+export function mergeJson(text: string): { goals: number; firstGoalId: string | null } {
+  const data = withDefaults(JSON.parse(text) as AppState);
+  if (data?.version !== 1 || !Array.isArray(data.pages) || typeof data.goals !== 'object') {
+    throw new Error('This file is not a Goal Planner file.');
+  }
+  const goalIds = new Map<string, string>();
+  const blockIds = new Map<string, string>();
+  const incoming = Object.values(data.goals).filter((g) => !g.deletedAt);
+  incoming.forEach((g) => {
+    goalIds.set(g.id, uid());
+    g.blocks.forEach((b) => blockIds.set(b.id, uid()));
+  });
+
+  let firstGoalId: string | null = null;
+  set((s) => {
+    const pages = [...s.pages];
+    const goals = { ...s.goals };
+    const now = nowIso();
+    for (const src of data.pages.filter((p) => !p.deletedAt)) {
+      const key = src.title.trim().toLowerCase();
+      let target = pages.find((p) => !p.deletedAt && p.title.trim().toLowerCase() === key);
+      if (!target) {
+        target = { ...src, id: uid(), goalOrder: [], createdAt: now, expanded: true };
+        pages.push(target);
+      }
+      const pageId = target.id;
+      const order = [
+        ...src.goalOrder,
+        ...incoming.filter((g) => g.pageId === src.id && !src.goalOrder.includes(g.id)).map((g) => g.id),
+      ];
+      const added: string[] = [];
+      for (const g of incoming.filter((x) => x.pageId === src.id)) {
+        const id = goalIds.get(g.id)!;
+        goals[id] = {
+          ...structuredClone(g),
+          id,
+          pageId,
+          parentId: g.parentId ? goalIds.get(g.parentId) : undefined,
+          blocks: g.blocks.map((b) => {
+            const nb = { ...structuredClone(b), id: blockIds.get(b.id)! };
+            if (nb.gallery) {
+              nb.gallery.goalIds = nb.gallery.goalIds.map((x) => goalIds.get(x)).filter((x): x is string => !!x);
+            }
+            if (nb.report) {
+              nb.report.items = nb.report.items.map((it) => ({
+                ...it,
+                id: uid(),
+                tableId: it.tableId ? (blockIds.get(it.tableId) ?? it.tableId) : undefined,
+              }));
+            }
+            return nb;
+          }),
+        };
+      }
+      for (const oldId of order) {
+        const g = data.goals[oldId];
+        if (g && !g.deletedAt && !g.parentId && goalIds.has(oldId)) added.push(goalIds.get(oldId)!);
+      }
+      firstGoalId ??= added[0] ?? null;
+      const i = pages.findIndex((p) => p.id === pageId);
+      pages[i] = { ...pages[i], goalOrder: [...pages[i].goalOrder, ...added], expanded: true };
+    }
+    return { ...s, pages, goals };
+  });
+  return { goals: incoming.length, firstGoalId };
+}
+
 // ---------- first-run sample content ----------
 
 function seedState(): AppState {

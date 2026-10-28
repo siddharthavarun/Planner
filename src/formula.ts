@@ -5,17 +5,25 @@
 
 export interface Sheets {
   /** Value of a cell; `sheet` is a table name, or undefined for the current table. */
-  get: (col: number, row: number, sheet?: string) => number;
+  /** null for an empty cell: ranges skip it, a single reference counts it as 0. */
+  get: (col: number, row: number, sheet?: string) => number | null;
   /** Number of data rows, for whole-column references. */
   rowCount: (sheet?: string) => number;
 }
 
+/** Thrown when SUM/AVG/MIN/MAX get only empty cells: the formula's result is blank, not 0. */
+class NoData extends Error {}
+const needData = (a: number[]) => {
+  if (a.length === 0) throw new NoData();
+  return a;
+};
+
 const FUNCS: Record<string, (args: number[]) => number> = {
-  SUM: (a) => a.reduce((x, y) => x + y, 0),
-  AVG: (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0),
-  AVERAGE: (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0),
-  MIN: (a) => (a.length ? Math.min(...a) : 0),
-  MAX: (a) => (a.length ? Math.max(...a) : 0),
+  SUM: (a) => needData(a).reduce((x, y) => x + y, 0),
+  AVG: (a) => needData(a).reduce((x, y) => x + y, 0) / a.length,
+  AVERAGE: (a) => needData(a).reduce((x, y) => x + y, 0) / a.length,
+  MIN: (a) => Math.min(...needData(a)),
+  MAX: (a) => Math.max(...needData(a)),
   COUNT: (a) => a.length,
   ROUND: (a) => {
     const f = 10 ** (a[1] ?? 0);
@@ -81,8 +89,20 @@ function tokenize(src: string): Tok[] {
   return out;
 }
 
-/** Evaluates a formula (without the leading "="). */
-export function evaluate(src: string, sheets: Sheets): number {
+/**
+ * Evaluates a formula (without the leading "="). Returns null when it summarises only empty
+ * cells, e.g. a month with no spending entered yet.
+ */
+export function evaluate(src: string, sheets: Sheets): number | null {
+  try {
+    return evaluateStrict(src, sheets);
+  } catch (err) {
+    if (err instanceof NoData) return null;
+    throw err;
+  }
+}
+
+function evaluateStrict(src: string, sheets: Sheets): number {
   const toks = tokenize(src);
   let pos = 0;
   const peek = () => toks[pos];
@@ -103,7 +123,10 @@ export function evaluate(src: string, sheets: Sheets): number {
     const c2 = b ? b.col : a.col;
     const vals: number[] = [];
     for (let c = Math.min(c1, c2); c <= Math.max(c1, c2); c++)
-      for (let r = Math.min(r1, r2); r <= Math.max(r1, r2); r++) vals.push(sheets.get(c, r, sheet));
+      for (let r = Math.min(r1, r2); r <= Math.max(r1, r2); r++) {
+        const v = sheets.get(c, r, sheet);
+        if (v !== null) vals.push(v);
+      }
     return vals;
   };
 
@@ -113,7 +136,8 @@ export function evaluate(src: string, sheets: Sheets): number {
     if (t?.t === 'ref') {
       const next = toks[pos + 1];
       const after = next?.t === 'op' ? next.v : null;
-      if (after === ':' || (t.row === null && (after === ',' || after === ')'))) {
+      // A lone reference as an argument behaves like a one-cell range, so empty cells are skipped.
+      if (after === ':' || after === ',' || after === ')') {
         pos++;
         if (after === ':') {
           pos++;
@@ -138,7 +162,7 @@ export function evaluate(src: string, sheets: Sheets): number {
     if (t.t === 'ref') {
       pos++;
       if (t.row === null) throw new Error(`Use ${colLetter(t.col)} inside SUM(), or a cell like ${colLetter(t.col)}1`);
-      return sheets.get(t.col, t.row, t.sheet);
+      return sheets.get(t.col, t.row, t.sheet) ?? 0;
     }
     if (t.t === 'fn') {
       pos++;

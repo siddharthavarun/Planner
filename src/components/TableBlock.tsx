@@ -170,6 +170,9 @@ export function TableBlock({
         shown = '⚠ Error';
       } else if (res.value !== null) {
         shown = format(res.value, spec.type === 'text' ? { type: 'number' } : spec);
+      } else if (raw.trim().startsWith('=')) {
+        // A formula over cells that are still empty: blank until there is data (tap to see it).
+        shown = '';
       }
     }
     return (
