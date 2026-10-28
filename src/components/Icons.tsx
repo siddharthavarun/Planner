@@ -152,3 +152,8 @@ export const CloseIcon = (p: P) => (
     <path d="M4 4l8 8M12 4l-8 8" />
   </svg>
 );
+export const CheckIcon = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M3.5 8.5l3 3 6-7" />
+  </svg>
+);

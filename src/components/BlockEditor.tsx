@@ -25,6 +25,7 @@ import {
 import { Menu, Popover, usePopover } from './Popover';
 import { EmojiPicker } from './Pickers';
 import { GalleryBlock } from './GalleryBlock';
+import { TableBlock } from './TableBlock';
 
 interface BlockKind {
   type: BlockType;
@@ -606,6 +607,9 @@ export function BlockEditor({ goalId, blocks, onChange, focusFirstRef, addTodoRe
         return (
           <div className="divider-block">
             <hr />
+            <button className="divider-delete" onClick={() => remove(block.id)} aria-label="Delete divider">
+              <CloseIcon width={12} height={12} />
+            </button>
           </div>
         );
       case 'table':
@@ -615,6 +619,7 @@ export function BlockEditor({ goalId, blocks, onChange, focusFirstRef, addTodoRe
             table={block.table ?? { header: true, rows: [['']] }}
             onChange={(table) => update(block.id, { table })}
             onExit={() => addBlockAfter(index, 'paragraph')}
+            onDelete={() => remove(block.id)}
           />
         );
       case 'gallery':
@@ -932,120 +937,6 @@ function CalloutBlock({
           />
         </Popover>
       )}
-    </div>
-  );
-}
-
-function TableBlock({
-  blockId,
-  table,
-  onChange,
-  onExit,
-}: {
-  blockId: string;
-  table: { header: boolean; rows: string[][] };
-  onChange: (t: { header: boolean; rows: string[][] }) => void;
-  onExit: () => void;
-}) {
-  const { rows } = table;
-  const cols = Math.max(1, ...rows.map((r) => r.length));
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const pendingCell = useRef<string | null>(null);
-
-  useLayoutEffect(() => {
-    if (!pendingCell.current) return;
-    wrapRef.current?.querySelector<HTMLTextAreaElement>(`[data-field="${pendingCell.current}"]`)?.focus();
-    pendingCell.current = null;
-  });
-
-  const setRows = (next: string[][]) => onChange({ ...table, rows: next });
-  const setCell = (r: number, c: number, v: string) =>
-    setRows(rows.map((row, ri) => (ri === r ? row.map((cell, ci) => (ci === c ? v : cell)) : row)));
-  const addRow = (at = rows.length) => {
-    const next = [...rows];
-    next.splice(at, 0, Array(cols).fill(''));
-    setRows(next);
-  };
-  const addCol = () => setRows(rows.map((r) => [...r, '']));
-  const delRow = (r: number) => (rows.length > 1 ? setRows(rows.filter((_, i) => i !== r)) : undefined);
-  const delCol = (c: number) => (cols > 1 ? setRows(rows.map((row) => row.filter((_, i) => i !== c))) : undefined);
-
-  const onCellKey = (e: KeyboardEvent<HTMLTextAreaElement>, r: number, c: number) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      if (r === rows.length - 1) addRow();
-      pendingCell.current = `cell-${r + 1}-${c}`;
-      if (r < rows.length - 1) {
-        wrapRef.current?.querySelector<HTMLTextAreaElement>(`[data-field="${pendingCell.current}"]`)?.focus();
-        pendingCell.current = null;
-      }
-    }
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      onExit();
-    }
-  };
-
-  return (
-    <div className="table-block" ref={wrapRef} data-table={blockId}>
-      <div className="table-scroll">
-        <table>
-          <thead>
-            <tr className="col-tools">
-              {Array.from({ length: cols }, (_, c) => (
-                <th key={c}>
-                  {cols > 1 && (
-                    <button className="tool-btn" tabIndex={-1} title="Delete column" onClick={() => delCol(c)}>
-                      <CloseIcon width={10} height={10} />
-                    </button>
-                  )}
-                </th>
-              ))}
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, r) => (
-              <tr key={r} className={table.header && r === 0 ? 'header-row' : ''}>
-                {Array.from({ length: cols }, (_, c) => (
-                  <td key={c}>
-                    <AutoTextarea
-                      data-field={`cell-${r}-${c}`}
-                      className="cell-input"
-                      value={row[c] ?? ''}
-                      onChange={(e) => setCell(r, c, e.target.value)}
-                      onKeyDown={(e) => onCellKey(e, r, c)}
-                    />
-                  </td>
-                ))}
-                <td className="row-tools">
-                  {rows.length > 1 && (
-                    <button className="tool-btn" tabIndex={-1} title="Delete row" onClick={() => delRow(r)}>
-                      <CloseIcon width={10} height={10} />
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <button className="add-col" onClick={addCol} title="Add a column" tabIndex={-1}>
-          <PlusIcon />
-        </button>
-      </div>
-      <div className="table-foot">
-        <button className="ghost-btn" onClick={() => addRow()} tabIndex={-1}>
-          <PlusIcon /> New row
-        </button>
-        <label className="ghost-btn">
-          <input
-            type="checkbox"
-            checked={table.header}
-            onChange={() => onChange({ ...table, header: !table.header })}
-          />
-          Header row
-        </label>
-      </div>
     </div>
   );
 }

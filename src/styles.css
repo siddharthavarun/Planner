@@ -1523,7 +1523,12 @@ button.crumb:hover {
 .block-h3 .gutter {
   top: 8px;
 }
-.block:hover > .gutter,
+@media (hover: hover) and (min-width: 761px) {
+  .block:hover > .gutter {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
 .block.menu-open > .gutter {
   opacity: 1;
   pointer-events: auto;
@@ -1698,7 +1703,31 @@ button.crumb:hover {
 }
 
 .divider-block {
+  position: relative;
   padding: 12px 0;
+}
+.divider-delete {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--fg2);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.divider-block:hover .divider-delete {
+  opacity: 1;
+}
+@media (hover: none), (max-width: 760px) {
+  .divider-delete {
+    opacity: 1;
+  }
 }
 .divider-block hr {
   margin: 0;
@@ -1822,9 +1851,21 @@ button.crumb:hover {
 .table-block:focus-within .table-foot {
   opacity: 1;
 }
+.table-foot {
+  flex-wrap: wrap;
+}
 .table-foot .ghost-btn {
   font-size: 0.8rem;
   cursor: pointer;
+  white-space: nowrap;
+}
+@media (max-width: 760px) {
+  .table-block tbody td:not(.ref-col):not(.row-tools) {
+    min-width: 104px;
+  }
+  .cell-input {
+    padding: 9px 10px;
+  }
 }
 .table-foot input {
   accent-color: var(--accent);
@@ -1882,6 +1923,168 @@ button.crumb:hover {
   min-height: 120px;
   cursor: text;
   padding-top: 8px;
+}
+
+/* ---------- table columns, formulas and totals ---------- */
+
+.col-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: var(--fg3);
+  font-size: 0.7rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+.col-btn:hover {
+  background: var(--chip);
+  color: var(--fg);
+}
+.col-letter {
+  font-weight: 700;
+  color: var(--fg2);
+}
+.table-block .col-tools th {
+  height: 26px;
+  text-align: left;
+  width: auto;
+}
+.table-block .ref-col {
+  width: 26px;
+  min-width: 26px !important;
+  padding: 10px 4px 0 0;
+  border: 0 !important;
+  background: none !important;
+  color: var(--fg3);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-align: right;
+  vertical-align: top;
+}
+.cell-input.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.cell-error {
+  color: var(--bad);
+}
+.cell-check {
+  display: grid;
+  place-items: center;
+  min-height: 40px;
+}
+.cell-check .todo-check {
+  margin: 0;
+}
+.cell-date {
+  position: relative;
+  display: block;
+  padding: 10px 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.cell-date input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  border: 0;
+  cursor: pointer;
+  font-size: 16px;
+}
+.table-block .calc-row td {
+  background: none !important;
+  border: 0 !important;
+  padding: 0;
+}
+.calc-btn {
+  display: block;
+  width: 100%;
+  padding: 6px 14px;
+  border-radius: 10px;
+  text-align: right;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.calc-btn:hover {
+  background: var(--chip);
+}
+.calc-btn.empty {
+  color: var(--fg3);
+  font-weight: 400;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.table-block:hover .calc-btn.empty,
+.table-block:focus-within .calc-btn.empty {
+  opacity: 1;
+}
+@media (hover: none), (max-width: 760px) {
+  .calc-btn.empty {
+    opacity: 0.7;
+  }
+}
+.calc-kind {
+  font-weight: 400;
+  color: var(--fg2);
+  margin-right: 4px;
+}
+.table-hint {
+  margin: 6px 0 0;
+  font-size: 0.76rem;
+  color: var(--fg3);
+}
+.table-hint code {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--chip);
+  color: var(--fg2);
+}
+.col-menu {
+  min-width: 220px;
+}
+.col-menu .option {
+  gap: 10px;
+}
+.col-menu .option svg {
+  color: var(--accent);
+}
+.col-menu .danger-text svg {
+  color: inherit;
+}
+.currency-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 10px 6px;
+}
+.chip-btn {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--chip);
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: var(--fg2);
+}
+.chip-btn.on {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+@media (hover: none), (max-width: 760px) {
+  .table-block .tool-btn,
+  .table-block .add-col,
+  .table-block .table-foot {
+    opacity: 1;
+  }
 }
 
 /* ---------- gallery block (inside a goal) ---------- */
@@ -2309,10 +2512,6 @@ button.crumb:hover {
     left: auto;
     right: 0;
     top: 2px;
-  }
-  .block:hover > .gutter {
-    opacity: 0;
-    pointer-events: none;
   }
   .block:focus-within > .gutter,
   .block.menu-open > .gutter {

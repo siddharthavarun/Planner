@@ -25,9 +25,22 @@ export type BlockType =
   | 'image'
   | 'gallery';
 
+export type ColumnType = 'text' | 'number' | 'currency' | 'percent' | 'date' | 'checkbox';
+export type CalcKind = 'none' | 'sum' | 'avg' | 'min' | 'max' | 'count';
+
+export interface ColumnSpec {
+  type: ColumnType;
+  /** ISO currency code for currency columns, e.g. "EUR". */
+  currency?: string;
+  /** Summary shown under the column. */
+  calc?: CalcKind;
+}
+
 export interface TableData {
   rows: string[][];
   header: boolean;
+  /** Per-column settings; missing entries are plain text. */
+  columns?: ColumnSpec[];
 }
 
 /** Cards in the first version of the gallery block; converted to sub-goals on load. */
