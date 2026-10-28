@@ -207,6 +207,7 @@ export function Sidebar() {
         <button className="sidebar-row" onClick={() => fileInput.current?.click()}>
           <UploadIcon /> Restore backup
         </button>
+        <p className="app-version">Version {__APP_VERSION__}</p>
         <input
           ref={mergeInput}
           type="file"

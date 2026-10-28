@@ -1,6 +1,7 @@
 // Lets the installed app open offline. Pages load network-first so new deploys show up;
 // built assets have hashed names, so they are served from the cache once fetched.
-const CACHE = 'goal-planner-v2';
+// The build stamps the cache name with the build time, so every deploy is a new service worker.
+const CACHE = 'goal-planner-__BUILD__';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((c) => c.addAll(['./', './manifest.webmanifest'])));
@@ -22,7 +23,8 @@ self.addEventListener('fetch', (event) => {
 
   if (req.mode === 'navigate') {
     event.respondWith(
-      fetch(req)
+      // Skip the browser's HTTP cache (GitHub Pages allows 10 minutes) so a new deploy shows at once.
+      fetch(req, { cache: 'no-store' })
         .then((res) => {
           const copy = res.clone();
           caches.open(CACHE).then((c) => c.put('./', copy));

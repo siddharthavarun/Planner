@@ -13,5 +13,21 @@ createRoot(document.getElementById('root')!).render(
 );
 
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw.js').catch(() => {});
+  // When a newer version takes over, reload once so the new code is what's on screen.
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloading) return;
+    reloading = true;
+    window.location.reload();
+  });
+  navigator.serviceWorker
+    .register('./sw.js', { updateViaCache: 'none' })
+    .then((reg) => {
+      // Home-screen apps can stay open for days; check again whenever the app comes back.
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') void reg.update().catch(() => {});
+      });
+    })
+    .catch(() => {});
 }

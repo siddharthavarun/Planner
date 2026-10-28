@@ -841,6 +841,11 @@ textarea:focus-visible {
   background: var(--accent);
   border-radius: 2px;
 }
+.app-version {
+  margin: 6px 10px 2px;
+  font-size: 0.7rem;
+  color: var(--fg3);
+}
 .sidebar-foot {
   padding: 8px;
   border-top: 1px solid var(--hair);
